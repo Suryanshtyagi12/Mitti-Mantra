@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Mittimantra</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .welcome-text h1 {
+            font-size: 1.5rem;
+            color: #1a1a1a;
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome-text p {
+            color: #6b7280;
+        }
+
+        .user-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .user-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #6b7280;
+            margin-bottom: 0.25rem;
+        }
+
+        .info-item span {
+            font-size: 1rem;
+            color: #1a1a1a;
+        }
+
+        .btn-secondary {
+            background-color: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <div class="welcome-text">
+                <h1>Welcome, {{ user.full_name or user.username }}!</h1>
+                <p>Here's your profile information</p>
+            </div>
+            <a href="/auth/logout" class="btn-secondary">Logout</a>
+        </div>
+
+        <div class="user-card">
+            <h2>Profile Details</h2>
+            <div class="user-info-grid">
+                <div class="info-item">
+                    <label>Username</label>
+                    <span>{{ user.username }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Email</label>
+                    <span>{{ user.email }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Full Name</label>
+                    <span>{{ user.full_name or 'Not set' }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Account Status</label>
+                    <span style="color: green;">Active</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

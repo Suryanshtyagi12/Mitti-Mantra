@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Mittimantra</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Create Account</h1>
+            <p>Join Mittimantra for AI-driven agricultural insights.</p>
+        </div>
+
+        <form action="/auth/register" method="POST" class="login-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required placeholder="Choose a username" minlength="3">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required placeholder="Enter your email">
+            </div>
+
+            <div class="form-group">
+                <label for="full_name">Full Name</label>
+                <input type="text" id="full_name" name="full_name" placeholder="Enter your full name">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required placeholder="Choose a strong password"
+                    minlength="6">
+            </div>
+
+            <div id="errorMessage" class="error-message" style="display: none; color: red; margin-bottom: 1rem;"></div>
+
+            <button type="submit" class="btn-primary">Create Account</button>
+        </form>
+
+        <div class="login-footer">
+            <p>Already have an account? <a href="/login" class="text-link">Sign In</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Check for error in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        if (error) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = error;
+            errorDiv.style.display = 'block';
+        }
+    </script>
+</body>
+
+</html>

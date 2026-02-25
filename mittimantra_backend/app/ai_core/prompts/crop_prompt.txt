@@ -1,0 +1,28 @@
+Task: Recommend the top 3 crops for a farmer based on the provided location and conditions.
+
+Inputs:
+- Location: {location}
+- Season: {season}
+- Profit Priority: {priority}
+- Soil Type: {soil_type} (optional)
+- Water Availability: {water} (optional)
+
+Requirements:
+1. Recommend ONLY the top 3 crops.
+2. For EACH crop, provide:
+   a) Why suitable: 1-2 lines on suitability for this zone.
+   b) Best Known For: one of Yield / Profit / Water Efficiency.
+   c) Fertilizer Recommendation: Preferred type and simple usage stage (early/mid/late).
+3. Be CONCISE. No long explanations.
+4. If Soil/Water info is missing, state assumptions clearly.
+
+Output Format:
+### 1. [Crop Name]
+- **Why Suitable**: [Explanation]
+- **Best For**: [Yield/Profit/Efficiency]
+- **Fertilizer**: [Type] at [Stage]
+
+### 2. [Crop Name]
+...
+
+(Repeat for 3 crops)
