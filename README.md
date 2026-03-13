@@ -21,20 +21,32 @@ Mitti Mantra is a comprehensive web application that empowers farmers with intel
    - Treatment and prevention recommendations
 
 3. **Smart Irrigation Scheduling**
-   - Intelligent water management system
-   - Crop-specific irrigation plans
-   - Real-time soil moisture analysis
-   - Weather-aware scheduling
+    - Intelligent water management system
+    - AI-enhanced crop-specific irrigation plans
+    - Real-time soil moisture analysis
+    - Location-aware weather integration
 
-4. **Pest Control Recommendations**
-   - Pest identification from images
-   - Organic and chemical control solutions
-   - Preventive measures and best practices
+4. **Track Farming (New!)**
+    - Create and manage personalized farming plans
+    - Capture crop details, location, and soil types
+    - Get AI-driven daily task recommendations
+    - Monitor historical farming records and progress
 
-5. **Analytics Dashboard**
-   - Track farming decisions and patterns
-   - Historical data analysis
-   - Visual insights and reports
+5. **AI Voice Assistant**
+    - Conversational "Smart Talk" farming assistant
+    - Multilingual support (Hindi, English, etc.)
+    - Voice-first interaction for ease of use in the field
+    - Context-aware agricultural insights
+
+6. **Pest & Disease Control**
+    - Image-based identification (Groq/Gemini powered)
+    - Organic and chemical control solutions
+    - Preventive measures and best practices
+
+7. **Analytics Dashboard**
+    - Track farming decisions and patterns
+    - Historical data analysis
+    - Visual insights and reports
 
 ### 🔐 User Authentication
 
@@ -83,48 +95,36 @@ Mittimantra/
 │   │   ├── auth.py              # Authentication utilities
 │   │   ├── database.py          # Database configuration
 │   │   ├── db_models.py         # SQLAlchemy models
-│   │   ├── schemas.py           # Pydantic schemas
 │   │   ├── routes/
-│   │   │   ├── auth_routes.py   # HTML form auth (legacy)
-│   │   │   └── api_auth_routes.py # JSON API auth
+│   │   │   ├── api_auth_routes.py # JSON API auth
+│   │   │   ├── ai_routes.py     # AI feature endpoints (New!)
+│   │   │   └── auth_routes.py   # HTML form auth (legacy)
 │   │   ├── services/
-│   │   │   ├── crop_service.py
-│   │   │   ├── disease_service.py
-│   │   │   ├── irrigation_service.py
-│   │   │   └── pest_service.py
+│   │   │   ├── ai_orchestrator.py # AI LLM management
+│   │   │   ├── crop_ai_service.py # Enhanced crop AI
+│   │   │   ├── disease_ai_service.py # AI disease detection
+│   │   │   ├── irrigation_ai_service.py # Smart irrigation AI
+│   │   │   ├── track_farming_service.py # Farm records mgmt
+│   │   │   ├── smart_talk_service.py # Conversational AI
+│   │   │   └── ...              # Other core services
 │   │   └── models/              # Request/Response models
 │   ├── static/                  # Static assets
-│   ├── templates/               # Jinja2 templates (legacy)
 │   ├── requirements.txt
 │   └── .env
 │
 └── mittimantra_frontend/         # React frontend
     ├── src/
     │   ├── App.jsx              # Main app component
-    │   ├── main.jsx             # Entry point
-    │   ├── context/
-    │   │   └── AuthContext.jsx  # Authentication state
     │   ├── components/
-    │   │   ├── Layout/
-    │   │   │   ├── Navbar.jsx
-    │   │   │   ├── Footer.jsx
-    │   │   │   └── Layout.jsx
-    │   │   └── ProtectedRoute.jsx
+    │   │   ├── VoiceAssistant/  # Interactive voice UI
+    │   │   └── ...
     │   ├── pages/
-    │   │   ├── Home.jsx
-    │   │   ├── Login.jsx
-    │   │   ├── Register.jsx
-    │   │   ├── Dashboard.jsx
-    │   │   ├── CropRecommendation.jsx
+    │   │   ├── TrackFarming.jsx # Farm activity hub
     │   │   ├── DiseaseDetection.jsx
-    │   │   ├── IrrigationScheduler.jsx
-    │   │   ├── PestControl.jsx
-    │   │   └── About.jsx
+    │   │   └── ...
     │   └── services/
     │       └── api.js           # API client
-    ├── public/
-    ├── package.json
-    └── vite.config.js
+    └── ...
 ```
 
 ---
@@ -384,6 +384,56 @@ Authorization: Bearer <access_token>
   "rainfall": 10.0,
   "crop_stage": "vegetative"
 }
+```
+
+### 🤖 AI-Enhanced Features (New /api/ai Routes)
+
+#### AI Crop Suggestion (Location-Based)
+```http
+POST /api/ai/crop-suggestion
+Content-Type: application/json
+Authorization: Bearer <access_token>
+
+{
+  "location": "Punjab, India",
+  "season": "Kharif",
+  "priority": "Profit",
+  "soil_type": "Alluvial",
+  "language": "hi"  // hi, en, etc.
+}
+```
+
+#### Smart Talk (Conversational AI)
+```http
+POST /api/ai/smart-talk
+Content-Type: application/json
+Authorization: Bearer <access_token>
+
+{
+  "query": "How can I improve my wheat yield?",
+  "language": "en"
+}
+```
+
+#### Track Farming (Add Record)
+```http
+POST /api/ai/track-farming
+Content-Type: application/json
+Authorization: Bearer <access_token>
+
+{
+  "crop_name": "Wheat",
+  "location": "Sonipat",
+  "soil_type": "Loamy",
+  "fertilizer": "Urea",
+  "planting_date": "2024-11-20"
+}
+```
+
+#### Get Farming Advice
+```http
+POST /api/ai/track-farming/{record_id}/advice
+Authorization: Bearer <access_token>
 ```
 
 ---
