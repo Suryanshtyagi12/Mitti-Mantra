@@ -15,7 +15,6 @@ from app.services.crop_ai_service import crop_ai_service
 from app.services.irrigation_ai_service import irrigation_ai_service
 from app.services.disease_ai_service import disease_ai_service
 from app.services.smart_talk_service import smart_talk_service
-from app.services.risk_alert_service import risk_alert_service
 from app.services.weather_soil_utils import geocode, fetch_soil_data, fetch_weather
 from app.utils.translation_maps import (
     translate_crop, translate_crop_list, translate_soil, get_hindi_prompt_directive
