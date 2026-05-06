@@ -2,44 +2,40 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaSeedling, FaLeaf, FaTint, FaCalendarAlt, FaArrowRight } from 'react-icons/fa';
+import { useLanguage } from '../context/LanguageContext';
 
 const Home = () => {
+  const { t } = useLanguage();
+
   const features = [
     {
       icon: FaSeedling,
-      title: 'Crop Recommendation',
-      description: 'Get AI-powered crop suggestions based on soil conditions, weather, and environmental factors.',
+      title: t('home.features.crop.title'),
+      description: t('home.features.crop.desc'),
       link: '/crop-recommendation',
       color: 'bg-green-500',
     },
     {
       icon: FaLeaf,
-      title: 'Disease Detection',
-      description: 'Upload plant images to detect diseases early and get treatment recommendations.',
+      title: t('home.features.disease.title'),
+      description: t('home.features.disease.desc'),
       link: '/disease-detection',
       color: 'bg-emerald-500',
     },
     {
       icon: FaTint,
-      title: 'Smart Irrigation',
-      description: 'Optimize water usage with intelligent irrigation scheduling based on crop needs.',
+      title: t('home.features.irrigation.title'),
+      description: t('home.features.irrigation.desc'),
       link: '/irrigation-scheduler',
       color: 'bg-blue-500',
-    },
-    {
-      icon: FaCalendarAlt,
-      title: 'Track Farming',
-      description: 'Track your crops daily and get personalized AI advice based on weather and growth stage.',
-      link: '/track-farming',
-      color: 'bg-purple-500',
     },
   ];
 
   const stats = [
-    { value: '10,000+', label: 'Farmers Helped' },
-    { value: '50+', label: 'Crops Supported' },
-    { value: '95%', label: 'Accuracy Rate' },
-    { value: '24/7', label: 'AI Support' },
+    { value: '10,000+', label: t('home.stats.farmers') },
+    { value: '50+',     label: t('home.stats.crops') },
+    { value: '95%',     label: t('home.stats.accuracy') },
+    { value: '24/7',    label: t('home.stats.support') },
   ];
 
   return (
@@ -57,18 +53,18 @@ const Home = () => {
               <FaSeedling className="text-6xl md:text-8xl" />
             </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Welcome to Mitti Mantra
+              {t('home.heroTitle')}
             </h1>
             <p className="text-xl md:text-2xl mb-8 text-primary-100 max-w-3xl mx-auto">
-              Your AI-Powered Agricultural Companion for Smarter Farming Decisions
+              {t('home.heroSubtitle')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/crop-recommendation" className="btn-primary bg-white text-primary-700 hover:bg-gray-100">
-                Get Started
+                {t('home.getStarted')}
                 <FaArrowRight className="inline ml-2" />
               </Link>
               <Link to="/about" className="btn-secondary border-white text-white hover:bg-white hover:text-primary-700">
-                Learn More
+                {t('home.learnMore')}
               </Link>
             </div>
           </motion.div>
@@ -101,13 +97,11 @@ const Home = () => {
       <section className="py-20 px-4 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="section-title">Our AI-Powered Features</h2>
-            <p className="section-subtitle">
-              Comprehensive agricultural solutions powered by advanced machine learning
-            </p>
+            <h2 className="section-title">{t('home.featuresTitle')}</h2>
+            <p className="section-subtitle">{t('home.featuresSubtitle')}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
               <motion.div
                 key={index}
@@ -125,7 +119,7 @@ const Home = () => {
                     </h3>
                     <p className="text-gray-600 mb-4">{feature.description}</p>
                     <div className="flex items-center text-primary-600 font-semibold">
-                      Try Now <FaArrowRight className="ml-2" />
+                      {t('common.tryNow')} <FaArrowRight className="ml-2" />
                     </div>
                   </div>
                 </Link>
@@ -139,10 +133,8 @@ const Home = () => {
       <section className="py-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="section-title">How It Works</h2>
-            <p className="section-subtitle">
-              Three simple steps to smarter farming
-            </p>
+            <h2 className="section-title">{t('home.howItWorks')}</h2>
+            <p className="section-subtitle">{t('home.howSubtitle')}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -150,30 +142,24 @@ const Home = () => {
               <div className="bg-primary-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-3xl font-bold text-primary-700">1</span>
               </div>
-              <h3 className="text-xl font-bold mb-3">Input Your Data</h3>
-              <p className="text-gray-600">
-                Enter soil conditions, upload images, or provide crop details
-              </p>
+              <h3 className="text-xl font-bold mb-3">{t('home.step1Title')}</h3>
+              <p className="text-gray-600">{t('home.step1Desc')}</p>
             </div>
 
             <div className="text-center">
               <div className="bg-primary-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-3xl font-bold text-primary-700">2</span>
               </div>
-              <h3 className="text-xl font-bold mb-3">AI Analysis</h3>
-              <p className="text-gray-600">
-                Our advanced ML models analyze and process your data instantly
-              </p>
+              <h3 className="text-xl font-bold mb-3">{t('home.step2Title')}</h3>
+              <p className="text-gray-600">{t('home.step2Desc')}</p>
             </div>
 
             <div className="text-center">
               <div className="bg-primary-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-3xl font-bold text-primary-700">3</span>
               </div>
-              <h3 className="text-xl font-bold mb-3">Get Recommendations</h3>
-              <p className="text-gray-600">
-                Receive actionable insights and expert recommendations
-              </p>
+              <h3 className="text-xl font-bold mb-3">{t('home.step3Title')}</h3>
+              <p className="text-gray-600">{t('home.step3Desc')}</p>
             </div>
           </div>
         </div>
@@ -183,13 +169,13 @@ const Home = () => {
       <section className="bg-gradient-to-r from-primary-600 to-primary-700 text-white py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to Transform Your Farming?
+            {t('home.ctaTitle')}
           </h2>
           <p className="text-xl mb-8 text-primary-100">
-            Join thousands of farmers already using AI to make better decisions
+            {t('home.ctaSubtitle')}
           </p>
           <Link to="/crop-recommendation" className="btn-primary bg-white text-primary-700 hover:bg-gray-100">
-            Get Started Now
+            {t('home.ctaBtn')}
             <FaArrowRight className="inline ml-2" />
           </Link>
         </div>

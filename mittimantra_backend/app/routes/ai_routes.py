@@ -4,6 +4,8 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
 import logging
+import json
+import re
 
 from app.database import get_db
 from app.auth import get_current_active_user
@@ -13,8 +15,11 @@ from app.services.crop_ai_service import crop_ai_service
 from app.services.irrigation_ai_service import irrigation_ai_service
 from app.services.disease_ai_service import disease_ai_service
 from app.services.smart_talk_service import smart_talk_service
-from app.services.track_farming_service import track_farming_service
 from app.services.risk_alert_service import risk_alert_service
+from app.services.weather_soil_utils import geocode, fetch_soil_data, fetch_weather
+from app.utils.translation_maps import (
+    translate_crop, translate_crop_list, translate_soil, get_hindi_prompt_directive
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -25,7 +30,7 @@ class AICropRequest(BaseModel):
     location: str
     season: str
     priority: str
-    soil_type: Optional[str] = None
+    # soil_type is now auto-detected from SoilGrids — no longer needed from user
     nitrogen: Optional[float] = 0
     phosphorus: Optional[float] = 0
     potassium: Optional[float] = 0
@@ -44,13 +49,6 @@ class SmartTalkRequest(BaseModel):
     language: str = "en"
     context: Optional[dict] = None
 
-class TrackFarmingCreate(BaseModel):
-    crop_name: str
-    location: str
-    soil_type: str
-    fertilizer: str
-    planting_date: str # Expecting YYYY-MM-DD string from frontend
-    language: str = "en"
 
 # --- Endpoints ---
 
@@ -58,68 +56,132 @@ class TrackFarmingCreate(BaseModel):
 async def get_crop_suggestion(
     request: AICropRequest
 ):
-    """Get AI-enhanced crop suggestion based on location and optional NPK data"""
-    # Use Crop AI service with location-based approach
+    """
+    Get AI-enhanced crop suggestion with:
+      - Auto soil intelligence from SoilGrids (no user input needed for soil type)
+      - Real-time weather context from OpenWeather
+      - Structured JSON response with top pick + alternatives
+    """
     from app.ai_core.prompt_manager import load_prompt
     from app.services.ai_orchestrator import ai_orchestrator
-    
-    prompt_template = load_prompt("crop_prompt.txt")
-    
-    # Construct prompt with available data
-    prompt = f"""
-Location: {request.location}
-Season: {request.season}
-Profit Priority: {request.priority}
-Soil Type: {request.soil_type or 'Not specified'}
-"""
-    
-    if request.nitrogen or request.phosphorus or request.potassium:
-        prompt += f"""
-Soil Nutrients (if provided):
-- Nitrogen: {request.nitrogen} kg/ha
-- Phosphorus: {request.phosphorus} kg/ha  
-- Potassium: {request.potassium} kg/ha
-"""
-    
-    prompt += f"""
-{{
-  "task": "crop_recommendation",
-  "instruction": "Based on the provided farmer information, recommend the best crops.",
-  "requirements": {{
-    "crop_count": 3,
-    "rules": [
-      "Recommend ONLY the top 3 crops",
-      "Be concise and practical",
-      "Do NOT give long explanations",
-      "If soil or water information is missing, clearly state assumptions"
-    ],
-    "per_crop_details": {{
-      "why_suitable": "1-2 lines explaining suitability for the given zone",
-      "best_known_for": ["Yield", "Profit", "Water Efficiency"],
-      "fertilizer_recommendation": {{
-        "type": "Preferred fertilizer type",
-        "stage": ["early", "mid", "late"]
-      }}
-    }}
-  }},
-  "output_format": {{
-    "structure": {{
-      "crop_name": "<Crop Name>",
-      "why_suitable": "<Short explanation>",
-      "best_for": "<Yield | Profit | Water Efficiency>",
-      "fertilizer": "<Fertilizer Type> at <Stage>"
-    }},
-    "repeat": 3
-  }},
-  "notes": [
-    "Do not include any additional crops",
-    "Avoid technical or scientific jargon",
-    "Use simple farmer-friendly language"
-  ]
-}}
-"""
 
-    
+    # ── Step 1: Geocode location ──────────────────────────────────────
+    lat, lon = None, None
+    try:
+        lat, lon = geocode(request.location)
+        logger.info(f"Geocoded '{request.location}' → ({lat}, {lon})")
+    except Exception as exc:
+        logger.warning(f"Geocoding failed for '{request.location}': {exc}")
+
+    # ── Step 2: Fetch weather data ────────────────────────────────────
+    weather_data = {}
+    if lat is not None and lon is not None:
+        try:
+            weather_data = fetch_weather(lat, lon)
+            logger.info(f"Weather fetched: {weather_data.get('temperature')}°C, {weather_data.get('condition')}")
+        except Exception as exc:
+            logger.warning(f"Weather fetch failed: {exc}")
+
+    # ── Step 3: Auto-fetch soil data from SoilGrids ───────────────────
+    soil_data = {}
+    if lat is not None and lon is not None:
+        try:
+            soil_data = fetch_soil_data(lat, lon, soil_type_override=None)
+            logger.info(f"Soil fetched: {soil_data.get('type')}, pH={soil_data.get('ph')}")
+        except Exception as exc:
+            logger.warning(f"Soil fetch failed: {exc}")
+            soil_data = {"type": "Loamy Soil", "source": "fallback", "ph": None, "nitrogen": None, "organic_carbon": None}
+    else:
+        soil_data = {"type": "Loamy Soil", "source": "fallback", "ph": None, "nitrogen": None, "organic_carbon": None}
+
+    # ── Step 4: Build rich, data-driven AI prompt ─────────────────────
+    soil_type = soil_data.get("type", "Loamy Soil")
+    soil_source = soil_data.get("source", "fallback")
+    soil_ph = soil_data.get("ph")
+    soil_nitrogen = soil_data.get("nitrogen")
+    soil_oc = soil_data.get("organic_carbon")
+    soil_clay = soil_data.get("clay_pct")
+    soil_sand = soil_data.get("sand_pct")
+
+    # Weather block
+    if weather_data.get("temperature") is not None:
+        weather_block = (
+            f"- Temperature: {weather_data['temperature']}°C, feels like {weather_data.get('feels_like', 'N/A')}°C\n"
+            f"- Humidity: {weather_data.get('humidity', 'N/A')}%\n"
+            f"- Condition: {weather_data.get('condition', 'N/A')}\n"
+            f"- Rainfall today: {weather_data.get('rainfall_today_mm', 0.0)} mm"
+        )
+        forecast_days = weather_data.get("forecast_days", [])[:5]
+        if forecast_days:
+            total_rain = sum(d.get("rain_mm", 0) for d in forecast_days)
+            weather_block += f"\n- Expected rainfall next 5 days: {total_rain:.1f} mm"
+    else:
+        weather_block = "- Weather data unavailable (using regional/seasonal averages)"
+
+    # Soil block
+    soil_block = f"- Soil Type: {soil_type} (detected via {soil_source})"
+    if soil_ph is not None:
+        soil_block += f"\n- Soil pH: {soil_ph}"
+    if soil_nitrogen is not None:
+        soil_block += f"\n- Nitrogen: {soil_nitrogen} cg/kg"
+    if soil_oc is not None:
+        soil_block += f"\n- Organic Carbon: {soil_oc} dg/kg"
+    if soil_clay is not None:
+        soil_block += f"\n- Clay: {soil_clay}%, Sand: {soil_sand}%"
+
+    # NPK block (optional user data)
+    npk_block = ""
+    if request.nitrogen or request.phosphorus or request.potassium:
+        npk_block = (
+            f"\nFarmer-provided soil nutrients:\n"
+            f"- Nitrogen: {request.nitrogen} kg/ha\n"
+            f"- Phosphorus: {request.phosphorus} kg/ha\n"
+            f"- Potassium: {request.potassium} kg/ha"
+        )
+
+    # Language directive for Hindi
+    lang_note = get_hindi_prompt_directive() if request.language == "hi" else ""
+
+    prompt = f"""You are an expert agricultural scientist and crop advisor for Indian farmers.
+
+A farmer from {request.location} needs smart crop recommendations for the {request.season} season.
+Their profit priority: {request.priority}
+
+=== REAL-TIME WEATHER DATA ===
+{weather_block}
+
+=== SOIL INTELLIGENCE (SoilGrids Satellite Data) ===
+{soil_block}
+{npk_block}
+
+=== YOUR TASK ===
+Based on the above real environmental data, recommend the best crops.
+
+You MUST return ONLY a valid JSON object — no extra text, no markdown, no code fences.
+
+The JSON must have EXACTLY this structure:
+{{
+  "top_pick": {{
+    "crop": "<Best crop name>",
+    "reason": "<2-3 sentence explanation of WHY this is the #1 choice given the soil, weather, season, and profit priority>"
+  }},
+  "alternative_crops": ["<crop2>", "<crop3>"],
+  "soil_type": "<soil type name>",
+  "weather_summary": "<1-2 sentence summary of current weather and its impact on farming>",
+  "ai_advice": "<3-4 concise paragraphs covering: (1) why top crop suits this specific soil+weather, (2) key farming practices: sowing depth, irrigation frequency, fertilizer type+stage, (3) expected yield range and market value in India, (4) main risk factors or pests to watch — practical, farmer-friendly language>"
+}}
+
+RULES:
+- Recommend crops most suitable for {request.season} season in {request.location}
+- Factor in the soil pH and texture when explaining suitability
+- Factor in the current weather and expected rainfall
+- Highlight the ONE best crop clearly in top_pick
+- Alternatives must be genuinely different crops (not varieties of the same crop)
+- Use simple language a farmer can understand
+- Be specific about yield, water needs, and risks
+- Do NOT add any text outside the JSON object{lang_note}"""
+
+    # ── Step 5: Call LLM ──────────────────────────────────────────────
     try:
         system_prompt = load_prompt("system_prompt.txt")
         ai_response = ai_orchestrator.get_llm_response(
@@ -127,76 +189,79 @@ Soil Nutrients (if provided):
             system_prompt=system_prompt,
             language=request.language
         )
-        
-        # Parse JSON from AI Response
-        import json
-        import re
-        
-        recommended_crop = "Unknown"
-        alternatives = []
-        
+
+        # ── Step 6: Parse structured JSON from AI response ────────────
+        top_pick = {"crop": "Unknown", "reason": ""}
+        alternative_crops = []
+        parsed_soil_type = soil_type
+        weather_summary = ""
+        ai_advice = ai_response  # fallback
+
         try:
-            # Clean possible markdown code blocks
-            clean_json = re.sub(r'```json\s*|\s*```', '', ai_response).strip()
-            # Find list bracket if any
-            match = re.search(r'\[.*\]', clean_json, re.DOTALL)
+            # Strip markdown code fences if present
+            clean_json = re.sub(r'```(?:json)?\s*|\s*```', '', ai_response).strip()
+            # Find the outermost JSON object
+            match = re.search(r'\{.*\}', clean_json, re.DOTALL)
             if match:
                 clean_json = match.group(0)
-            
+
             data = json.loads(clean_json)
-            
-            # Handle list response
-            if isinstance(data, list) and len(data) > 0:
-                recommended_crop = data[0].get("crop_name", "Unknown")
-                alternatives = [item.get("crop_name") for item in data[1:] if "crop_name" in item]
-            elif isinstance(data, dict):
-                # Maybe wrapped in a key
-                for key, val in data.items():
-                    if isinstance(val, list) and len(val) > 0:
-                         recommended_crop = val[0].get("crop_name", "Unknown")
-                         alternatives = [item.get("crop_name") for item in val[1:] if "crop_name" in item]
-                         break
-                    elif key == "crop_name":
-                         recommended_crop = val
-        except Exception as e:
-            logger.warning(f"Failed to parse AI JSON: {e}")
-            # Regex Fallback
-            crops = re.findall(r'"crop_name":\s*"([^"]+)"', ai_response)
-            if crops:
-                recommended_crop = crops[0]
-                alternatives = crops[1:]
-        
+
+            if isinstance(data, dict):
+                top_pick = data.get("top_pick", top_pick)
+                alternative_crops = data.get("alternative_crops", [])
+                parsed_soil_type = data.get("soil_type", soil_type)
+                weather_summary = data.get("weather_summary", "")
+                ai_advice = data.get("ai_advice", ai_response)
+
+        except Exception as parse_err:
+            logger.warning(f"Failed to parse structured AI JSON: {parse_err}")
+            # Attempt regex fallback to extract crop names
+            crop_matches = re.findall(r'"crop"\s*:\s*"([^"]+)"', ai_response)
+            if crop_matches:
+                top_pick = {"crop": crop_matches[0], "reason": "AI recommended based on conditions."}
+                alternative_crops = crop_matches[1:3]
+
+        # Apply translation maps for ML label outputs
+        lang = request.language
+        top_crop_name = translate_crop(top_pick.get("crop", "Unknown"), lang)
+        top_pick_translated = {**top_pick, "crop": top_crop_name}
+        alt_crops_translated = translate_crop_list(alternative_crops, lang)
+        soil_translated = translate_soil(parsed_soil_type, lang)
+
         return {
-            "recommended_crop": recommended_crop,
-            "alternative_crops": alternatives,
-            "ai_advice": ai_response, # Keep full text/JSON as advice/debug
+            "top_pick": top_pick_translated,
+            "alternative_crops": alt_crops_translated,
+            "soil_type": soil_translated,
+            "soil_data": soil_data,
+            "weather_summary": weather_summary,
+            "weather_data": weather_data if weather_data else None,
+            "ai_advice": ai_advice,
             "location": request.location,
             "season": request.season,
-            "language": request.language
+            "language": request.language,
+            # Legacy fields for backward compatibility with ML mode display
+            "recommended_crop": top_crop_name,
         }
+
     except Exception as e:
         logger.error(f"Error in crop AI: {str(e)}")
         from app.ai_core.rule_based_fallbacks import get_crop_fallback
         fallback_text = get_crop_fallback(request.location, request.season, request.language)
-        
-        # Extract crops from fallback text
-        # Format: "...consider: Crop1, Crop2, Crop3..."
-        import re
-        crops = []
-        if ':' in fallback_text:
-            parts = fallback_text.split(':')[-1].split('.')[0]
-            crops = [c.strip() for c in parts.split(',')]
-            
-        rec_crop = crops[0] if crops else "Rice"
-        alts = crops[1:] if len(crops) > 1 else []
-        
+        fallback_crop = translate_crop("Rice", request.language)
+
         return {
-            "recommended_crop": rec_crop,
-            "alternative_crops": alts,
+            "top_pick": {"crop": fallback_crop, "reason": fallback_text},
+            "alternative_crops": translate_crop_list(["Maize", "Wheat"], request.language),
+            "soil_type": translate_soil(soil_type, request.language),
+            "soil_data": soil_data,
+            "weather_summary": "",
+            "weather_data": weather_data if weather_data else None,
             "ai_advice": fallback_text,
             "location": request.location,
             "season": request.season,
             "language": request.language,
+            "recommended_crop": fallback_crop,
             "fallback": True
         }
 
@@ -265,36 +330,3 @@ async def smart_talk(
         context=request.context
     )
 
-@router.post("/track-farming")
-async def add_farming_record(
-    request: TrackFarmingCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Add a new farming record"""
-    return track_farming_service.create_record(
-        db=db,
-        user_id=current_user.id,
-        data=request.dict()
-    )
-
-@router.get("/track-farming")
-async def get_farming_records(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get all farming records for the current user"""
-    return track_farming_service.get_records(db, current_user.id)
-
-@router.post("/track-farming/{record_id}/advice")
-async def get_farming_advice(
-    record_id: int,
-    language: str = "en",
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get AI advice for a specific farming record"""
-    advice = track_farming_service.get_advice(db, record_id, language)
-    if not advice:
-        raise HTTPException(status_code=404, detail="Record not found")
-    return advice

@@ -4,6 +4,7 @@ from .crop_service import CropRecommendationService
 from .ai_orchestrator import ai_orchestrator
 from app.ai_core.prompt_manager import load_prompt
 from app.ai_core.rule_based_fallbacks import get_crop_fallback
+from app.utils.translation_maps import translate_crop, translate_crop_list
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +73,14 @@ class CropAIService:
                 language=language
             )
             
+            # Translate crop name for Hindi
+            translated_crop = translate_crop(recommended_crop, language)
+            translated_alts = translate_crop_list(ml_result.get('alternative_crops') or [], language)
+
             return {
-                "recommended_crop": recommended_crop,
+                "recommended_crop": translated_crop,
                 "confidence": confidence,
-                "ml_details": ml_result,
+                "ml_details": {**ml_result, "alternative_crops": translated_alts},
                 "ai_advice": ai_advice,
                 "language": language
             }

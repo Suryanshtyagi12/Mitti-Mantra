@@ -27,7 +27,6 @@ class User(Base):
     crop_predictions = relationship("CropPrediction", back_populates="user", cascade="all, delete-orphan")
     disease_predictions = relationship("DiseasePrediction", back_populates="user", cascade="all, delete-orphan")
     irrigation_schedules = relationship("IrrigationSchedule", back_populates="user", cascade="all, delete-orphan")
-    track_farming_records = relationship("TrackFarming", back_populates="user", cascade="all, delete-orphan")
 
 
 class CropPrediction(Base):
@@ -107,38 +106,3 @@ class IrrigationSchedule(Base):
     # Relationship
     user = relationship("User", back_populates="irrigation_schedules")
 
-
-class TrackFarming(Base):
-    """Model to track user farming data"""
-    __tablename__ = "track_farming"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    
-    crop_name = Column(String)
-    location = Column(String)
-    soil_type = Column(String)
-    fertilizer = Column(String)
-    planting_date = Column(DateTime)
-    last_advice_date = Column(DateTime(timezone=True), nullable=True)
-    language = Column(String, default="en")
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationship
-    user = relationship("User", back_populates="track_farming_records")
-    advice_history = relationship("FarmingAdvice", back_populates="farming_record", cascade="all, delete-orphan")
-
-
-class FarmingAdvice(Base):
-    """Model to store advisory history for tracking"""
-    __tablename__ = "farming_advice"
-
-    id = Column(Integer, primary_key=True, index=True)
-    track_farming_id = Column(Integer, ForeignKey("track_farming.id"))
-    
-    advice_text = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationship
-    farming_record = relationship("TrackFarming", back_populates="advice_history")

@@ -8,6 +8,7 @@ import {
   FaSpinner, FaRedo, FaStar,
 } from 'react-icons/fa';
 import { apiService } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 
 /* ─── helpers ─────────────────────────────────────────────── */
 
@@ -90,6 +91,7 @@ const AnalysingSkeleton = () => (
 /* ─── main component ─────────────────────────────────────── */
 
 const DiseaseDetection = () => {
+  const { t, language } = useLanguage();
   const [loading, setLoading]         = useState(false);
   const [result, setResult]           = useState(null);
   const [errorState, setErrorState]   = useState(null);
@@ -127,9 +129,9 @@ const DiseaseDetection = () => {
     try {
       let response;
       if (mode === 'ml') {
-        response = await apiService.predictDisease(selectedImage);
+        response = await apiService.predictDisease(selectedImage, language);
       } else {
-        response = await apiService.detectDiseaseAI(selectedImage, 'en');
+        response = await apiService.detectDiseaseAI(selectedImage, language);
       }
 
       // ── Classify the response type ──────────────────────────────
@@ -183,6 +185,7 @@ const DiseaseDetection = () => {
     if (!text) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === 'hi' ? 'hi-IN' : 'en-US';
     window.speechSynthesis.speak(utterance);
   };
 
@@ -210,10 +213,10 @@ const DiseaseDetection = () => {
             <FaLeaf className="text-3xl text-white" />
           </div>
           <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-            Plant Disease Detection
+            {t('diseaseDetection.title')}
           </h1>
           <p className="mt-2 text-gray-500 text-lg max-w-xl mx-auto">
-            Upload a leaf photo — AI analyses the disease, severity &amp; gives farmer-friendly treatment advice.
+            {t('diseaseDetection.subtitle')}
           </p>
 
           {/* Mode Toggle */}
@@ -249,7 +252,7 @@ const DiseaseDetection = () => {
             className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6"
           >
             <h2 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
-              <FaCamera className="text-green-500" /> Upload Crop Image
+              <FaCamera className="text-green-500" /> {t('diseaseDetection.uploadTitle')}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -300,11 +303,11 @@ const DiseaseDetection = () => {
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
-                      <FaSpinner className="animate-spin" /> Analysing…
+                      <FaSpinner className="animate-spin" /> {t('diseaseDetection.analyzing')}
                     </span>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
-                      <FaUpload /> Detect Disease
+                      <FaUpload /> {t('diseaseDetection.analyzeBtn')}
                     </span>
                   )}
                 </button>
@@ -313,7 +316,7 @@ const DiseaseDetection = () => {
                   onClick={handleReset}
                   className="px-5 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium transition flex items-center gap-2"
                 >
-                  <FaRedo className="text-sm" /> Reset
+                  <FaRedo className="text-sm" /> {t('common.reset')}
                 </button>
               </div>
             </form>
@@ -381,7 +384,7 @@ const DiseaseDetection = () => {
                     onClick={() => setErrorState(null)}
                     className="text-sm px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-700 transition flex items-center gap-2"
                   >
-                    <FaRedo className="text-xs" /> Try Again
+                    <FaRedo className="text-xs" /> {t('common.back')}
                   </button>
                 </motion.div>
 
@@ -402,7 +405,7 @@ const DiseaseDetection = () => {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <p className="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">
-                          Detected Disease
+                          {t('diseaseDetection.result.disease')}
                         </p>
                         <h2 className={`text-2xl font-extrabold leading-tight ${isHealthy ? 'text-emerald-700' : 'text-red-700'}`}>
                           {result.disease || 'Unknown'}
@@ -427,7 +430,7 @@ const DiseaseDetection = () => {
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       {/* Severity Badge */}
                       <div className="bg-white rounded-xl p-3 shadow-sm">
-                        <p className="text-xs text-gray-500 mb-1.5">Severity</p>
+                        <p className="text-xs text-gray-500 mb-1.5">{t('diseaseDetection.result.severity')}</p>
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold border ${severityMeta.color}`}>
                           {severityMeta.icon} {severityMeta.label}
                         </span>
@@ -461,28 +464,28 @@ const DiseaseDetection = () => {
 
                   {/* ── Cause ── */}
                   {result.cause && (
-                    <Section icon={FaMicroscope} iconColor="text-purple-500" title="What Causes This?">
+                    <Section icon={FaMicroscope} iconColor="text-purple-500" title={t('diseaseDetection.result.cause')}>
                       <p className="text-sm text-gray-700 leading-relaxed">{result.cause}</p>
                     </Section>
                   )}
 
                   {/* ── Symptoms ── */}
                   {result.symptoms_observed && (
-                    <Section icon={FaInfoCircle} iconColor="text-blue-500" title="Observed Symptoms">
+                    <Section icon={FaInfoCircle} iconColor="text-blue-500" title={t('diseaseDetection.result.symptoms')}>
                       <p className="text-sm text-gray-700 leading-relaxed">{result.symptoms_observed}</p>
                     </Section>
                   )}
 
                   {/* ── Precautions ── */}
                   {result.immediate_precautions?.length > 0 && (
-                    <Section icon={FaExclamationTriangle} iconColor="text-orange-500" title="Immediate Precautions">
+                    <Section icon={FaExclamationTriangle} iconColor="text-orange-500" title={t('diseaseDetection.result.precautions')}>
                       <BulletList items={result.immediate_precautions} />
                     </Section>
                   )}
 
                   {/* ── Treatment ── */}
                   {result.treatment?.length > 0 && (
-                    <Section icon={FaCheckCircle} iconColor="text-green-600" title="Recommended Treatment">
+                    <Section icon={FaCheckCircle} iconColor="text-green-600" title={t('diseaseDetection.result.treatment')}>
                       <BulletList items={result.treatment} />
                     </Section>
                   )}
@@ -490,10 +493,10 @@ const DiseaseDetection = () => {
                   {/* ── Organic & Chemical Solutions side-by-side ── */}
                   {(result.organic_solutions?.length > 0 || result.chemical_solutions?.length > 0) && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Section icon={FaSeedling} iconColor="text-green-600" title="Organic Solutions">
+                      <Section icon={FaSeedling} iconColor="text-green-600" title={t('diseaseDetection.result.organic')}>
                         <BulletList items={result.organic_solutions} emptyMsg="None listed" />
                       </Section>
-                      <Section icon={FaFlask} iconColor="text-red-500" title="Chemical Solutions">
+                      <Section icon={FaFlask} iconColor="text-red-500" title={t('diseaseDetection.result.chemical')}>
                         <BulletList items={result.chemical_solutions} emptyMsg="None listed" />
                       </Section>
                     </div>
@@ -501,14 +504,14 @@ const DiseaseDetection = () => {
 
                   {/* ── Prevention ── */}
                   {result.prevention_methods?.length > 0 && (
-                    <Section icon={FaShieldAlt} iconColor="text-indigo-500" title="Prevention Methods">
+                    <Section icon={FaShieldAlt} iconColor="text-indigo-500" title={t('diseaseDetection.result.prevention')}>
                       <BulletList items={result.prevention_methods} />
                     </Section>
                   )}
 
                   {/* ── Recovery Outlook ── */}
                   {result.recovery_outlook && (
-                    <Section icon={FaLightbulb} iconColor="text-yellow-500" title="Recovery Outlook">
+                    <Section icon={FaLightbulb} iconColor="text-yellow-500" title={t('diseaseDetection.result.recovery')}>
                       <p className="text-sm text-gray-700 leading-relaxed">{result.recovery_outlook}</p>
                     </Section>
                   )}
@@ -518,7 +521,7 @@ const DiseaseDetection = () => {
                     <details className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                       <summary className="cursor-pointer font-semibold text-gray-700 select-none flex items-center gap-2">
                         <FaStar className="text-yellow-400 text-sm" />
-                        Full AI Response (raw)
+                        {t('diseaseDetection.result.aiAnalysis')}
                       </summary>
                       <pre className="mt-3 text-xs text-gray-600 whitespace-pre-wrap font-mono leading-relaxed overflow-auto max-h-64">
                         {result.ai_advice}
@@ -537,7 +540,7 @@ const DiseaseDetection = () => {
                   className="bg-white rounded-2xl shadow border border-gray-100 flex flex-col items-center justify-center min-h-[440px] text-center p-8"
                 >
                   <FaLeaf className="text-7xl text-gray-200 mb-4" />
-                  <p className="text-gray-400 text-lg font-medium">Upload an image to begin analysis</p>
+                  <p className="text-gray-400 text-lg font-medium">{t('diseaseDetection.empty')}</p>
                   <p className="text-gray-300 text-sm mt-1">AI will detect diseases and provide treatment advice</p>
                   {mode === 'ai' && (
                     <div className="mt-4 text-xs text-gray-300 bg-gray-50 rounded-xl px-4 py-2">

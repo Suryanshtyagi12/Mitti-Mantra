@@ -20,6 +20,7 @@ from .disease_service import DiseaseDetectionService
 from .ai_orchestrator import ai_orchestrator
 from app.ai_core.prompt_manager import load_prompt
 from app.ai_core.rule_based_fallbacks import get_disease_fallback
+from app.utils.translation_maps import translate_disease, translate_severity, get_hindi_prompt_directive
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,10 @@ class DiseaseAIService:
             prompt_template = load_prompt("disease_prompt.txt")
             prompt = prompt_template.format(crop_name=crop_name)
 
+            # 2. Inject language directive for Hindi
+            if language == "hi":
+                prompt += get_hindi_prompt_directive()
+
             logger.info(
                 "Sending image to Gemini Vision (fallback chain active, %d bytes) …",
                 len(image_bytes),
@@ -83,6 +88,10 @@ class DiseaseAIService:
 
             # 4. Parse the response
             parsed = self._parse_response(ai_response)
+
+            # 5. Translate labels if Hindi
+            parsed["disease"] = translate_disease(parsed["disease"], language)
+            parsed["severity"] = translate_severity(parsed["severity"], language)
 
             logger.info(
                 "Disease detection succeeded: %s | plant=%s | severity=%s | confidence=%.2f",

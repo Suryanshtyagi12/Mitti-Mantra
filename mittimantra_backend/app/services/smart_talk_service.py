@@ -88,9 +88,15 @@ class SmartTalkService:
 
         except Exception as e:
             logger.error(f"Error in Smart Talk service: {str(e)}")
+            if language == "hi":
+                error_msg = "क्षमा करें, अभी कनेक्ट करने में समस्या है। कृपया पुनः प्रयास करें।"
+                error_options = ["पुनः प्रयास करें", "मेनू पर जाएं", "इंटरनेट जांचें"]
+            else:
+                error_msg = "I'm having trouble connecting to my brain right now. Please try again."
+                error_options = ["Try again", "Go to menu", "Check internet"]
             return {
-                "answer": "I'm having trouble connecting to my brain right now. Please try again.",
-                "options": ["Try again", "Go to menu", "Check internet"],
+                "answer": error_msg,
+                "options": error_options,
                 "language": language
             }
 

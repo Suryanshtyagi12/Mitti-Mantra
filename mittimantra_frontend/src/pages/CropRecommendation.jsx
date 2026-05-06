@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { FaSeedling, FaInfoCircle } from 'react-icons/fa';
 import { apiService } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 
 const CropRecommendation = () => {
+  const { t, language } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [mode, setMode] = useState('ml'); // 'ml' or 'ai'
@@ -54,7 +56,7 @@ const CropRecommendation = () => {
       } else {
         // AI Mode: only location is required, rest is optional
         if (!formData.location || formData.location.trim().length < 3) {
-          toast.error('Please enter a valid location (state/district)');
+          toast.error(t('errors.locationRequired'));
           setLoading(false);
           return;
         }
@@ -64,20 +66,19 @@ const CropRecommendation = () => {
           season: formData.season,
           priority: formData.priority,
           soil_type: formData.soilType || 'Typical soil for this region',
-          // NPK values are optional for AI mode
           nitrogen: formData.nitrogen ? parseFloat(formData.nitrogen) : 0,
           phosphorus: formData.phosphorus ? parseFloat(formData.phosphorus) : 0,
           potassium: formData.potassium ? parseFloat(formData.potassium) : 0,
-          language: 'en'
+          language: language
         };
         response = await apiService.getCropSuggestionAI(payload);
       }
 
       setResult(response);
-      toast.success('Crop recommendation generated successfully!');
+      toast.success(t('common.success'));
     } catch (error) {
       console.error('Error:', error);
-      toast.error(error.response?.data?.detail || 'Failed to get crop recommendation');
+      toast.error(error.response?.data?.detail || t('errors.apiError'));
     } finally {
       setLoading(false);
     }
@@ -112,16 +113,16 @@ const CropRecommendation = () => {
           <div className="flex justify-center mb-4">
             <FaSeedling className="text-5xl text-primary-600" />
           </div>
-          <h1 className="section-title">Crop Recommendation System</h1>
+          <h1 className="section-title">{t('cropRecommendation.title')}</h1>
           <p className="section-subtitle">
-            Get AI-powered crop suggestions based on your soil and environmental conditions
+            {t('cropRecommendation.subtitle')}
           </p>
 
           {/* Mode Selector */}
           <div className="mt-8 max-w-2xl mx-auto">
             <div className="bg-white rounded-xl shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-                Choose Recommendation Method
+                {t('cropRecommendation.chooseMethod')}
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 {/* ML Model Option */}
@@ -137,10 +138,10 @@ const CropRecommendation = () => {
                       🤖
                     </div>
                     <h4 className={`font-bold mb-1 ${mode === 'ml' ? 'text-primary-700' : 'text-gray-700'}`}>
-                      ML Model
+                      {t('cropRecommendation.mlMode')}
                     </h4>
                     <p className="text-xs text-gray-600 text-center">
-                      Fast, offline-capable predictions using trained machine learning model
+                      {t('cropRecommendation.mlModeDesc')}
                     </p>
                   </div>
                 </button>
@@ -158,10 +159,10 @@ const CropRecommendation = () => {
                       ✨
                     </div>
                     <h4 className={`font-bold mb-1 ${mode === 'ai' ? 'text-green-700' : 'text-gray-700'}`}>
-                      AI API (Groq)
+                      {t('cropRecommendation.aiMode')}
                     </h4>
                     <p className="text-xs text-gray-600 text-center">
-                      Context-aware recommendations using advanced AI language models
+                      {t('cropRecommendation.aiModeDesc')}
                     </p>
                   </div>
                 </button>
@@ -188,7 +189,7 @@ const CropRecommendation = () => {
             className="card"
           >
             <h2 className="text-2xl font-bold mb-6 text-gray-900">
-              {mode === 'ml' ? 'Enter Soil & Weather Data' : 'Enter Farm Details'}
+              {mode === 'ml' ? t('cropRecommendation.enterSoilData') : t('cropRecommendation.enterFarmDetails')}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -198,133 +199,84 @@ const CropRecommendation = () => {
                   {/* Nitrogen */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nitrogen (N) - kg/ha *
+                      {t('cropRecommendation.nitrogen')} *
                     </label>
                     <input
-                      type="number"
-                      name="nitrogen"
-                      value={formData.nitrogen}
-                      onChange={handleChange}
-                      className="input-field"
-                      placeholder="Enter nitrogen content (0-200)"
-                      min="0"
-                      max="200"
-                      step="0.1"
-                      required
+                      type="number" name="nitrogen" value={formData.nitrogen} onChange={handleChange}
+                      className="input-field" placeholder={t('cropRecommendation.nitrogenPh')}
+                      min="0" max="200" step="0.1" required
                     />
                   </div>
 
                   {/* Phosphorus */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Phosphorus (P) - kg/ha *
+                      {t('cropRecommendation.phosphorus')} *
                     </label>
                     <input
-                      type="number"
-                      name="phosphorus"
-                      value={formData.phosphorus}
-                      onChange={handleChange}
-                      className="input-field"
-                      placeholder="Enter phosphorus content (0-200)"
-                      min="0"
-                      max="200"
-                      step="0.1"
-                      required
+                      type="number" name="phosphorus" value={formData.phosphorus} onChange={handleChange}
+                      className="input-field" placeholder={t('cropRecommendation.phosphorusPh')}
+                      min="0" max="200" step="0.1" required
                     />
                   </div>
 
                   {/* Potassium */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Potassium (K) - kg/ha *
+                      {t('cropRecommendation.potassium')} *
                     </label>
                     <input
-                      type="number"
-                      name="potassium"
-                      value={formData.potassium}
-                      onChange={handleChange}
-                      className="input-field"
-                      placeholder="Enter potassium content (0-300)"
-                      min="0"
-                      max="300"
-                      step="0.1"
-                      required
+                      type="number" name="potassium" value={formData.potassium} onChange={handleChange}
+                      className="input-field" placeholder={t('cropRecommendation.potassiumPh')}
+                      min="0" max="300" step="0.1" required
                     />
                   </div>
 
                   {/* Temperature */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Temperature - °C *
+                      {t('cropRecommendation.temperature')} *
                     </label>
                     <input
-                      type="number"
-                      name="temperature"
-                      value={formData.temperature}
-                      onChange={handleChange}
-                      className="input-field"
-                      placeholder="Enter temperature (-10 to 60)"
-                      min="-10"
-                      max="60"
-                      step="0.1"
-                      required
+                      type="number" name="temperature" value={formData.temperature} onChange={handleChange}
+                      className="input-field" placeholder={t('cropRecommendation.temperaturePh')}
+                      min="-10" max="60" step="0.1" required
                     />
                   </div>
 
                   {/* Humidity */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Humidity - % *
+                      {t('cropRecommendation.humidity')} *
                     </label>
                     <input
-                      type="number"
-                      name="humidity"
-                      value={formData.humidity}
-                      onChange={handleChange}
-                      className="input-field"
-                      placeholder="Enter humidity (0-100)"
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      required
+                      type="number" name="humidity" value={formData.humidity} onChange={handleChange}
+                      className="input-field" placeholder={t('cropRecommendation.humidityPh')}
+                      min="0" max="100" step="0.1" required
                     />
                   </div>
 
                   {/* pH */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Soil pH *
+                      {t('cropRecommendation.ph')} *
                     </label>
                     <input
-                      type="number"
-                      name="ph"
-                      value={formData.ph}
-                      onChange={handleChange}
-                      className="input-field"
-                      placeholder="Enter soil pH (3.0-10.0)"
-                      min="3"
-                      max="10"
-                      step="0.1"
-                      required
+                      type="number" name="ph" value={formData.ph} onChange={handleChange}
+                      className="input-field" placeholder={t('cropRecommendation.phPh')}
+                      min="3" max="10" step="0.1" required
                     />
                   </div>
 
                   {/* Rainfall */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Rainfall - mm *
+                      {t('cropRecommendation.rainfall')} *
                     </label>
                     <input
-                      type="number"
-                      name="rainfall"
-                      value={formData.rainfall}
-                      onChange={handleChange}
-                      className="input-field"
-                      placeholder="Enter rainfall (0-500)"
-                      min="0"
-                      max="500"
-                      step="0.1"
-                      required
+                      type="number" name="rainfall" value={formData.rainfall} onChange={handleChange}
+                      className="input-field" placeholder={t('cropRecommendation.rainfallPh')}
+                      min="0" max="500" step="0.1" required
                     />
                   </div>
                 </>
@@ -334,132 +286,75 @@ const CropRecommendation = () => {
                   {/* Location */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Location (State/District) *
+                      {t('cropRecommendation.location')} *
                     </label>
                     <input
-                      type="text"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleChange}
-                      className="input-field"
-                      placeholder="e.g., Punjab, Maharashtra, Haryana"
-                      required
+                      type="text" name="location" value={formData.location} onChange={handleChange}
+                      className="input-field" placeholder={t('cropRecommendation.locationPlaceholder')} required
                     />
                   </div>
 
                   {/* Season */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Season *
+                      {t('cropRecommendation.season')} *
                     </label>
-                    <select
-                      name="season"
-                      value={formData.season}
-                      onChange={handleChange}
-                      className="input-field"
-                      required
-                    >
-                      <option value="Kharif">Kharif (Monsoon)</option>
-                      <option value="Rabi">Rabi (Winter)</option>
-                      <option value="Zaid">Zaid (Summer)</option>
+                    <select name="season" value={formData.season} onChange={handleChange} className="input-field" required>
+                      <option value="Kharif">{t('cropRecommendation.kharif')}</option>
+                      <option value="Rabi">{t('cropRecommendation.rabi')}</option>
+                      <option value="Zaid">{t('cropRecommendation.zaid')}</option>
                     </select>
                   </div>
 
                   {/* Profit Priority */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Profit Priority *
+                      {t('cropRecommendation.profitPriority')} *
                     </label>
-                    <select
-                      name="priority"
-                      value={formData.priority}
-                      onChange={handleChange}
-                      className="input-field"
-                      required
-                    >
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
+                    <select name="priority" value={formData.priority} onChange={handleChange} className="input-field" required>
+                      <option value="Low">{t('cropRecommendation.low')}</option>
+                      <option value="Medium">{t('cropRecommendation.medium')}</option>
+                      <option value="High">{t('cropRecommendation.high')}</option>
                     </select>
                   </div>
 
                   {/* Soil Type - Optional */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Soil Type (Optional)
+                      {t('cropRecommendation.soilTypeOptional')}
                     </label>
-                    <select
-                      name="soilType"
-                      value={formData.soilType}
-                      onChange={handleChange}
-                      className="input-field"
-                    >
-                      <option value="">Select Soil Type...</option>
-                      <option value="Clay">Clay</option>
-                      <option value="Sandy">Sandy</option>
-                      <option value="Loamy">Loamy</option>
-                      <option value="Black">Black</option>
-                      <option value="Red">Red</option>
-                      <option value="Alluvial">Alluvial</option>
+                    <select name="soilType" value={formData.soilType} onChange={handleChange} className="input-field">
+                      <option value="">{t('cropRecommendation.soilTypePlaceholder')}</option>
+                      <option value="Clay">{t('cropRecommendation.clay')}</option>
+                      <option value="Sandy">{t('cropRecommendation.sandy')}</option>
+                      <option value="Loamy">{t('cropRecommendation.loamy')}</option>
+                      <option value="Black">{t('cropRecommendation.black')}</option>
+                      <option value="Red">{t('cropRecommendation.red')}</option>
+                      <option value="Alluvial">{t('cropRecommendation.alluvial')}</option>
                     </select>
                   </div>
 
                   {/* Optional NPK Section */}
                   <div className="border-t pt-4 mt-4">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Optional: Soil Nutrients (if available)</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('cropRecommendation.optionalNPK')}</h3>
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Nitrogen (N)
-                        </label>
-                        <input
-                          type="number"
-                          name="nitrogen"
-                          value={formData.nitrogen}
-                          onChange={handleChange}
-                          className="input-field text-sm"
-                          placeholder="0-200"
-                          min="0"
-                          max="200"
-                          step="0.1"
-                        />
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('cropRecommendation.nitrogen')}</label>
+                        <input type="number" name="nitrogen" value={formData.nitrogen} onChange={handleChange}
+                          className="input-field text-sm" placeholder="0-200" min="0" max="200" step="0.1" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Phosphorus (P)
-                        </label>
-                        <input
-                          type="number"
-                          name="phosphorus"
-                          value={formData.phosphorus}
-                          onChange={handleChange}
-                          className="input-field text-sm"
-                          placeholder="0-200"
-                          min="0"
-                          max="200"
-                          step="0.1"
-                        />
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('cropRecommendation.phosphorus')}</label>
+                        <input type="number" name="phosphorus" value={formData.phosphorus} onChange={handleChange}
+                          className="input-field text-sm" placeholder="0-200" min="0" max="200" step="0.1" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Potassium (K)
-                        </label>
-                        <input
-                          type="number"
-                          name="potassium"
-                          value={formData.potassium}
-                          onChange={handleChange}
-                          className="input-field text-sm"
-                          placeholder="0-300"
-                          min="0"
-                          max="300"
-                          step="0.1"
-                        />
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('cropRecommendation.potassium')}</label>
+                        <input type="number" name="potassium" value={formData.potassium} onChange={handleChange}
+                          className="input-field text-sm" placeholder="0-300" min="0" max="300" step="0.1" />
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      💡 AI will use weather data and regional patterns if NPK values are not provided
-                    </p>
+                    <p className="text-xs text-gray-500 mt-2">{t('cropRecommendation.optionalNPKNote')}</p>
                   </div>
                 </>
               )}
@@ -474,10 +369,10 @@ const CropRecommendation = () => {
                   {loading ? (
                     <span className="flex items-center justify-center">
                       <div className="spinner mr-2"></div>
-                      Analyzing...
+                      {t('common.analyzing')}
                     </span>
                   ) : (
-                    'Get Recommendation'
+                    t('cropRecommendation.getRecommendation')
                   )}
                 </button>
                 <button
@@ -485,7 +380,7 @@ const CropRecommendation = () => {
                   onClick={handleReset}
                   className="btn-secondary"
                 >
-                  Reset
+                  {t('common.reset')}
                 </button>
               </div>
             </form>
@@ -500,18 +395,19 @@ const CropRecommendation = () => {
             {result ? (
               <div className="card bg-gradient-to-br from-primary-50 to-primary-100 border-2 border-primary-300">
                 <h2 className="text-2xl font-bold mb-6 text-primary-900 flex justify-between items-center">
-                  <span>Recommendation Result</span>
+                  <span>{t('cropRecommendation.result.title')}</span>
                   <button
                     onClick={() => {
                       const text = result.ai_advice || result.reasoning;
                       if (text) {
                         const utterance = new SpeechSynthesisUtterance(text);
+                        utterance.lang = language === 'hi' ? 'hi-IN' : 'en-US';
                         window.speechSynthesis.speak(utterance);
                       }
                     }}
                     className="text-sm bg-primary-600 text-white px-3 py-1 rounded-full hover:bg-primary-700 transition"
                   >
-                    🔊 Read Aloud
+                    {t('common.readAloud')}
                   </button>
                 </h2>
 
@@ -521,7 +417,7 @@ const CropRecommendation = () => {
                     <div className="flex items-center mb-2">
                       <FaSeedling className="text-3xl text-primary-600 mr-3" />
                       <div>
-                        <p className="text-sm text-gray-600 font-medium">Recommended Crop</p>
+                        <p className="text-sm text-gray-600 font-medium">{t('cropRecommendation.result.recommendedCrop')}</p>
                         <p className="text-3xl font-bold text-primary-700 capitalize">
                           {result.recommended_crop}
                         </p>
@@ -532,7 +428,7 @@ const CropRecommendation = () => {
                   {/* Confidence */}
                   {result.confidence && (
                     <div className="bg-white rounded-lg p-4 shadow-sm">
-                      <p className="text-sm text-gray-600 mb-2">Confidence Score</p>
+                      <p className="text-sm text-gray-600 mb-2">{t('cropRecommendation.result.confidence')}</p>
                       <div className="flex items-center">
                         <div className="flex-1 bg-gray-200 rounded-full h-3 mr-3">
                           <div
@@ -550,7 +446,7 @@ const CropRecommendation = () => {
                   {/* Alternative Crops - Handle both old and new structure */}
                   {((result.ml_details?.alternative_crops) || (result.alternative_crops)) && (
                     <div className="bg-white rounded-lg p-4 shadow-sm">
-                      <p className="text-sm text-gray-600 mb-3 font-medium">Alternative Options</p>
+                      <p className="text-sm text-gray-600 mb-3 font-medium">{t('cropRecommendation.result.alternatives')}</p>
                       <div className="flex flex-wrap gap-2">
                         {(result.ml_details?.alternative_crops || result.alternative_crops).map((crop, index) => (
                           <span
@@ -571,7 +467,7 @@ const CropRecommendation = () => {
                         <FaInfoCircle className="text-primary-600 mr-2 mt-1 flex-shrink-0" />
                         <div>
                           <p className="text-sm text-gray-600 mb-1 font-medium">
-                            {result.ai_advice ? "AI Advice" : "Why This Crop?"}
+                            {result.ai_advice ? t('cropRecommendation.result.aiAdvice') : t('cropRecommendation.result.whyCrop')}
                           </p>
                           <div className="text-gray-700 whitespace-pre-wrap">
                             {result.ai_advice || result.reasoning}
@@ -586,7 +482,7 @@ const CropRecommendation = () => {
               <div className="card bg-gray-100 flex items-center justify-center h-full min-h-[400px]">
                 <div className="text-center text-gray-500">
                   <FaSeedling className="text-6xl mx-auto mb-4 opacity-50" />
-                  <p className="text-lg">Fill in the form to get crop recommendations</p>
+                  <p className="text-lg">{t('cropRecommendation.empty')}</p>
                 </div>
               </div>
             )}

@@ -7,54 +7,64 @@ const AuthContext = createContext(null);
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within AuthProvider');
-    }
+    if (!context) throw new Error('useAuth must be used within AuthProvider');
     return context;
 };
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(() => {
+        // Restore user from localStorage on first load
+        try {
+            const saved = localStorage.getItem('mm_user');
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    });
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    // Check if user is logged in on mount
+    // Validate stored token on mount
     useEffect(() => {
-        const checkAuth = async () => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                try {
-                    const userData = await apiService.getProfile();
-                    setUser(userData);
-                } catch (error) {
-                    console.error('Auth check failed:', error);
-                    localStorage.removeItem('token');
-                }
+        const validateToken = async () => {
+            const token = localStorage.getItem('mm_token');
+            if (!token) {
+                setLoading(false);
+                return;
             }
-            setLoading(false);
+            try {
+                const userData = await apiService.getProfile();
+                setUser(userData);
+                localStorage.setItem('mm_user', JSON.stringify(userData));
+            } catch (error) {
+                // Token invalid or expired – clear everything
+                localStorage.removeItem('mm_token');
+                localStorage.removeItem('mm_user');
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
         };
 
-        checkAuth();
+        validateToken();
     }, []);
 
     const login = async (username, password) => {
         try {
             const data = await apiService.login(username, password);
 
-            // Store token
-            localStorage.setItem('token', data.access_token);
-
-            // Set user
+            localStorage.setItem('mm_token', data.access_token);
+            localStorage.setItem('mm_user', JSON.stringify(data.user));
             setUser(data.user);
 
-            // Navigate to home
+            toast.success(`Welcome back, ${data.user.username}! 🌱`);
             navigate('/');
-
-            toast.success('Logged in successfully!');
-
             return { success: true };
         } catch (error) {
-            const message = error.response?.data?.detail || 'Login failed';
+            const message =
+                error.response?.data?.detail ||
+                error.message ||
+                'Login failed. Please try again.';
             toast.error(message);
             return { success: false, error: message };
         }
@@ -64,30 +74,29 @@ export const AuthProvider = ({ children }) => {
         try {
             const data = await apiService.register(email, username, password, full_name);
 
-            // Store token
-            localStorage.setItem('token', data.access_token);
-
-            // Set user
+            localStorage.setItem('mm_token', data.access_token);
+            localStorage.setItem('mm_user', JSON.stringify(data.user));
             setUser(data.user);
 
-            // Navigate to home
+            toast.success(`Account created! Welcome, ${data.user.username}! 🌾`);
             navigate('/');
-
-            toast.success('Account created successfully!');
-
             return { success: true };
         } catch (error) {
-            const message = error.response?.data?.detail || 'Registration failed';
+            const message =
+                error.response?.data?.detail ||
+                error.message ||
+                'Registration failed. Please try again.';
             toast.error(message);
             return { success: false, error: message };
         }
     };
 
     const logout = () => {
-        localStorage.removeItem('token');
+        localStorage.removeItem('mm_token');
+        localStorage.removeItem('mm_user');
         setUser(null);
         navigate('/login');
-        toast.info('Logged out successfully');
+        toast.info('Logged out successfully. See you soon! 👋');
     };
 
     const value = {

@@ -3,16 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaMicrophone, FaPaperPlane, FaTimes, FaRobot, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
 import { apiService } from '../services/api';
 import { toast } from 'react-toastify';
+import { useLanguage } from '../context/LanguageContext';
 
 const VoiceAssistant = () => {
+    const { t, language } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
-        { type: 'bot', text: 'Namaste! I am MittiMantra, your farming assistant. How can I help you today?', options: ['Crop Advice', 'Disease Detection', 'Market Prices'] }
+        { type: 'bot', text: t('chatbot.welcome'), options: t('chatbot.welcomeOptions') }
     ]);
     const [inputValue, setInputValue] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [language, setLanguage] = useState('en'); // 'en' or 'hi'
 
     const messagesEndRef = useRef(null);
     const recognitionRef = useRef(null);
@@ -126,8 +127,9 @@ const VoiceAssistant = () => {
 
         } catch (error) {
             console.error('Bot Error:', error);
-            setMessages(prev => [...prev, { type: 'bot', text: 'Sorry, I am having trouble connecting right now.' }]);
-            speak('Sorry, I am having trouble connecting right now.');
+            const errMsg = t('chatbot.errorMsg');
+            setMessages(prev => [...prev, { type: 'bot', text: errMsg }]);
+            speak(errMsg);
         }
     };
 
@@ -160,15 +162,12 @@ const VoiceAssistant = () => {
                         <div className="bg-green-600 p-4 text-white flex justify-between items-center">
                             <div className="flex items-center gap-2">
                                 <FaRobot />
-                                <span className="font-bold">MittiMantra Assistant</span>
+                                <span className="font-bold">{t('chatbot.title')}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setLanguage(l => l === 'en' ? 'hi' : 'en')}
-                                    className="text-xs bg-white text-green-700 px-2 py-1 rounded font-bold uppercase"
-                                >
-                                    {language}
-                                </button>
+                                <span className="text-xs bg-white text-green-700 px-2 py-1 rounded font-bold">
+                                    {language === 'en' ? 'EN' : 'हि'}
+                                </span>
                                 <button onClick={isSpeaking ? stopSpeaking : () => { }} className="hover:text-gray-200">
                                     {isSpeaking ? <FaVolumeUp className="animate-pulse" /> : <FaVolumeMute />}
                                 </button>
@@ -222,7 +221,7 @@ const VoiceAssistant = () => {
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder={isListening ? "Listening..." : "Type or speak..."}
+                                placeholder={isListening ? t('chatbot.listening') : t('chatbot.placeholder')}
                                 className="flex-1 border-0 focus:ring-0 text-sm bg-transparent"
                             />
 

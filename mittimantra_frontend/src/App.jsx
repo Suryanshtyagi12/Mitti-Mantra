@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Context
 import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 
 // Protected Route
 import ProtectedRoute from './components/ProtectedRoute';
@@ -22,7 +23,6 @@ import CropRecommendation from './pages/CropRecommendation';
 import DiseaseDetection from './pages/DiseaseDetection';
 import IrrigationScheduler from './pages/IrrigationScheduler';
 import About from './pages/About';
-import TrackFarming from './pages/TrackFarming';
 
 // Components
 import VoiceAssistant from './components/VoiceAssistant';
@@ -30,47 +30,40 @@ import VoiceAssistant from './components/VoiceAssistant';
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <div className="App">
-          <VoiceAssistant />
-          <Routes>
-            {/* Auth Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+      <LanguageProvider>
+        <AuthProvider>
+          <div className="App">
+            <VoiceAssistant />
+            <Routes>
+              {/* Auth Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
-            {/* Layout Wrapped Routes */}
-            <Route element={<Layout />}>
-              <Route path="/" element={<Home />} />
-              <Route path="/crop-recommendation" element={<CropRecommendation />} />
-              <Route path="/disease-detection" element={<DiseaseDetection />} />
-              <Route path="/irrigation-scheduler" element={<IrrigationScheduler />} />
-              <Route
-                path="/track-farming"
-                element={
-                  <ProtectedRoute>
-                    <TrackFarming />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/about" element={<About />} />
-            </Route>
-          </Routes>
+              {/* Layout Wrapped Routes */}
+              <Route element={<Layout />}>
+                <Route path="/" element={<Home />} />
+                <Route path="/crop-recommendation" element={<CropRecommendation />} />
+                <Route path="/disease-detection" element={<DiseaseDetection />} />
+                <Route path="/irrigation-scheduler" element={<IrrigationScheduler />} />
+                <Route path="/about" element={<About />} />
+              </Route>
+            </Routes>
 
-
-          <ToastContainer
-            position="top-right"
-            autoClose={5000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="light"
-          />
-        </div>
-      </AuthProvider>
+            <ToastContainer
+              position="top-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="light"
+            />
+          </div>
+        </AuthProvider>
+      </LanguageProvider>
     </Router>
   );
 }

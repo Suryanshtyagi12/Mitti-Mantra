@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fa';
 import { WiHumidity, WiRain } from 'react-icons/wi';
 import { apiService } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 
 /* ─── tiny markdown renderer (bold + headers only) ─── */
 const renderMarkdown = (text) => {
@@ -35,6 +36,7 @@ const conditionEmoji = (cond = '') => {
 };
 
 const IrrigationScheduler = () => {
+  const { t, language } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [result, setResult]   = useState(null);
   const [formData, setFormData] = useState({
@@ -46,10 +48,10 @@ const IrrigationScheduler = () => {
   });
 
   const irrigationMethods = [
-    { value: 'Drip',      label: '💧 Drip',      desc: 'Water-efficient' },
-    { value: 'Sprinkler', label: '🌀 Sprinkler',  desc: 'Wide coverage' },
-    { value: 'Flood',     label: '🌊 Flood',      desc: 'Traditional' },
-    { value: 'Not Sure',  label: '❓ Not Sure',   desc: 'AI will decide' },
+    { value: 'Drip',      label: t('irrigation.drip'),      desc: t('irrigation.dripDesc') },
+    { value: 'Sprinkler', label: t('irrigation.sprinkler'),  desc: t('irrigation.sprinklerDesc') },
+    { value: 'Flood',     label: t('irrigation.flood'),      desc: t('irrigation.floodDesc') },
+    { value: 'Not Sure',  label: t('irrigation.notSure'),   desc: t('irrigation.notSureDesc') },
   ];
 
   const commonCrops = [
@@ -62,10 +64,10 @@ const IrrigationScheduler = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.location.trim() || formData.location.trim().length < 3) {
-      toast.error('Please enter a valid location'); return;
+      toast.error(t('errors.locationRequired')); return;
     }
     if (!formData.crop.trim() || formData.crop.trim().length < 2) {
-      toast.error('Please enter a crop name'); return;
+      toast.error(t('errors.cropRequired')); return;
     }
     setLoading(true);
     setResult(null);
@@ -76,11 +78,11 @@ const IrrigationScheduler = () => {
         irrigation_method: formData.irrigation_method,
         soil_type:         formData.soil_type || null,
         rainfall_pattern:  formData.rainfall_pattern || null,
-        language:          'en',
+        language:          language,
       };
       const response = await apiService.getIrrigationSchedule(payload);
       setResult(response);
-      toast.success('Irrigation plan generated!');
+      toast.success(t('common.success'));
     } catch (err) {
       console.error('Irrigation error:', err);
       toast.error(err.response?.data?.detail || 'Failed to get irrigation schedule');
@@ -108,9 +110,9 @@ const IrrigationScheduler = () => {
               <FaTint className="text-4xl text-white" />
             </div>
           </div>
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Smart Irrigation Advisor</h1>
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">{t('irrigation.title')}</h1>
           <p className="text-gray-500 text-lg max-w-xl mx-auto">
-            Real-time weather + soil intelligence + AI reasoning for your farm
+            {t('irrigation.subtitle')}
           </p>
         </motion.div>
 
@@ -123,7 +125,7 @@ const IrrigationScheduler = () => {
           >
             <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
-                <FaLeaf className="text-green-500" /> Irrigation Help
+                <FaLeaf className="text-green-500" /> {t('irrigation.formTitle')}
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -131,23 +133,23 @@ const IrrigationScheduler = () => {
                 {/* Location */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    📍 Location (State / District) *
+                    {t('irrigation.location')}
                   </label>
                   <input
                     type="text" name="location" value={formData.location} onChange={handleChange}
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                    placeholder="e.g., Ludhiana, Punjab" required
+                    placeholder={t('irrigation.locationPlaceholder')} required
                   />
-                  <p className="text-xs text-gray-400 mt-1">AI fetches live weather for this location</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('irrigation.locationHint')}</p>
                 </div>
 
                 {/* Crop */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">🌾 Crop *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">{t('irrigation.crop')}</label>
                   <input
                     type="text" name="crop" value={formData.crop} onChange={handleChange}
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                    placeholder="e.g., Wheat, Rice, Cotton" list="crop-suggestions" required
+                    placeholder={t('irrigation.cropPlaceholder')} list="crop-suggestions" required
                   />
                   <datalist id="crop-suggestions">
                     {commonCrops.map(c => <option key={c} value={c} />)}
@@ -157,7 +159,7 @@ const IrrigationScheduler = () => {
                 {/* Irrigation Method */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💧 Preferred Irrigation Method
+                    {t('irrigation.methodLabel')}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {irrigationMethods.map(m => (
@@ -180,32 +182,32 @@ const IrrigationScheduler = () => {
                 {/* Soil Type (Optional) */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    🪨 Soil Type <span className="font-normal text-gray-400">(Optional)</span>
+                    {t('irrigation.soilType')} <span className="font-normal text-gray-400">({t('common.optional')})</span>
                   </label>
                   <select
                     name="soil_type" value={formData.soil_type} onChange={handleChange}
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
                   >
-                    <option value="">Auto-detect from SoilGrids API</option>
-                    <option value="Clay">Clay</option>
-                    <option value="Sandy">Sandy</option>
-                    <option value="Loamy">Loamy</option>
-                    <option value="Black">Black</option>
-                    <option value="Red">Red</option>
-                    <option value="Alluvial">Alluvial</option>
+                    <option value="">{t('irrigation.autoDetect')}</option>
+                    <option value="Clay">{t('cropRecommendation.clay')}</option>
+                    <option value="Sandy">{t('cropRecommendation.sandy')}</option>
+                    <option value="Loamy">{t('cropRecommendation.loamy')}</option>
+                    <option value="Black">{t('cropRecommendation.black')}</option>
+                    <option value="Red">{t('cropRecommendation.red')}</option>
+                    <option value="Alluvial">{t('cropRecommendation.alluvial')}</option>
                   </select>
-                  <p className="text-xs text-gray-400 mt-1">Leave blank to auto-detect using satellite soil data</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('irrigation.soilTypeHint')}</p>
                 </div>
 
                 {/* Rainfall Pattern (Optional) */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    🌧️ Rainfall Pattern <span className="font-normal text-gray-400">(Optional)</span>
+                    {t('irrigation.rainfallPattern')} <span className="font-normal text-gray-400">({t('common.optional')})</span>
                   </label>
                   <input
                     type="text" name="rainfall_pattern" value={formData.rainfall_pattern} onChange={handleChange}
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                    placeholder="e.g., Heavy monsoon, Moderate, Low"
+                    placeholder={t('irrigation.rainfallPlaceholder')}
                   />
                 </div>
 
@@ -221,27 +223,27 @@ const IrrigationScheduler = () => {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                         </svg>
-                        Fetching data…
+                        {t('common.pleaseWait')}
                       </span>
-                    ) : '🌿 Get Irrigation Plan'}
+                    ) : `🌿 ${t('irrigation.getAdvice')}`}
                   </button>
                   <button
                     type="button" onClick={handleReset}
                     className="px-5 py-3 border-2 border-gray-300 text-gray-600 rounded-xl hover:border-gray-400 transition font-semibold"
                   >
-                    Reset
+                    {t('common.reset')}
                   </button>
                 </div>
               </form>
 
               {/* Info note */}
               <div className="mt-5 bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
-                <strong>What happens when you submit:</strong>
+                <strong>{t('irrigation.infoBox')}</strong>
                 <ol className="list-decimal ml-4 mt-1 space-y-0.5">
-                  <li>Location geocoded to latitude/longitude</li>
-                  <li>Live weather + 7-day forecast fetched</li>
-                  <li>Soil type &amp; chemistry auto-detected</li>
-                  <li>AI generates a data-driven irrigation plan</li>
+                  <li>{t('irrigation.infoStep1')}</li>
+                  <li>{t('irrigation.infoStep2')}</li>
+                  <li>{t('irrigation.infoStep3')}</li>
+                  <li>{t('irrigation.infoStep4')}</li>
                 </ol>
               </div>
             </div>
@@ -280,8 +282,8 @@ const IrrigationScheduler = () => {
             {!loading && !result && (
               <div className="bg-white rounded-2xl shadow border border-gray-100 flex flex-col items-center justify-center min-h-[400px] p-10 text-center text-gray-400">
                 <FaTint className="text-7xl mb-4 text-blue-200" />
-                <p className="text-lg font-semibold">Fill the form to get your irrigation plan</p>
-                <p className="text-sm mt-1">AI will use live weather + soil data for your location</p>
+                <p className="text-lg font-semibold">{t('irrigation.empty')}</p>
+                <p className="text-sm mt-1">{t('irrigation.emptySubtitle')}</p>
               </div>
             )}
 
@@ -295,35 +297,35 @@ const IrrigationScheduler = () => {
                     <div className="bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-2xl shadow-lg p-5">
                       <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
                         <span className="text-2xl">{conditionEmoji(weather.condition)}</span>
-                        Live Weather — {result.location}
+                        {t('irrigation.result.weather')} — {result.location}
                       </h3>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                         <div className="bg-white/20 rounded-xl p-3 text-center">
                           <FaThermometerHalf className="mx-auto mb-1 text-orange-200" />
                           <p className="text-2xl font-bold">{weather.temperature ?? '—'}°C</p>
-                          <p className="text-xs opacity-80">Temperature</p>
+                          <p className="text-xs opacity-80">{t('irrigation.temperature')}</p>
                         </div>
                         <div className="bg-white/20 rounded-xl p-3 text-center">
                           <FaTint className="mx-auto mb-1 text-blue-200" />
                           <p className="text-2xl font-bold">{weather.humidity ?? '—'}%</p>
-                          <p className="text-xs opacity-80">Humidity</p>
+                          <p className="text-xs opacity-80">{t('irrigation.humidity')}</p>
                         </div>
                         <div className="bg-white/20 rounded-xl p-3 text-center">
                           <span className="text-xl block mb-1">🌧️</span>
                           <p className="text-2xl font-bold">{weather.rainfall_today_mm ?? 0} mm</p>
-                          <p className="text-xs opacity-80">Rain Today</p>
+                          <p className="text-xs opacity-80">{t('irrigation.rainfall')}</p>
                         </div>
                         <div className="bg-white/20 rounded-xl p-3 text-center">
                           <FaWind className="mx-auto mb-1 text-gray-200" />
                           <p className="text-2xl font-bold">{weather.wind_speed ?? '—'} m/s</p>
-                          <p className="text-xs opacity-80">Wind</p>
+                          <p className="text-xs opacity-80">{t('irrigation.windSpeed')}</p>
                         </div>
                       </div>
 
                       {/* 7-Day forecast strip */}
                       {weather.forecast_days?.length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-2">7-Day Forecast</p>
+                          <p className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-2">{t('irrigation.result.forecast')}</p>
                           <div className="flex gap-2 overflow-x-auto pb-1">
                             {weather.forecast_days.map((day, i) => (
                               <div key={i} className="bg-white/20 rounded-xl px-3 py-2 text-center min-w-[80px] flex-shrink-0">
@@ -343,31 +345,31 @@ const IrrigationScheduler = () => {
                   {soil && (
                     <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-5">
                       <h3 className="font-bold text-amber-900 mb-3 flex items-center gap-2">
-                        <FaFlask className="text-amber-600" /> Soil Intelligence
+                        <FaFlask className="text-amber-600" /> {t('irrigation.result.soil')}
                         <span className="ml-auto text-xs font-normal bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">
-                          {soil.source === 'SoilGrids API' ? '📡 SoilGrids' : soil.source === 'user_provided' ? '👤 User input' : '🔄 Fallback'}
+                          {soil.source === 'SoilGrids API' ? t('irrigation.result.soilGrids') : soil.source === 'user_provided' ? t('irrigation.result.userInput') : t('irrigation.result.fallback')}
                         </span>
                       </h3>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="bg-white rounded-xl p-3 text-center shadow-sm">
-                          <p className="text-xs text-gray-500 mb-1">Soil Type</p>
+                          <p className="text-xs text-gray-500 mb-1">{t('irrigation.result.soilType')}</p>
                           <p className="font-bold text-amber-800 text-sm">{soil.type}</p>
                         </div>
                         {soil.ph != null && (
                           <div className="bg-white rounded-xl p-3 text-center shadow-sm">
-                            <p className="text-xs text-gray-500 mb-1">pH Level</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('irrigation.result.ph')}</p>
                             <p className="font-bold text-amber-800 text-lg">{soil.ph}</p>
                           </div>
                         )}
                         {soil.nitrogen != null && (
                           <div className="bg-white rounded-xl p-3 text-center shadow-sm">
-                            <p className="text-xs text-gray-500 mb-1">Nitrogen (N)</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('irrigation.result.nitrogen')}</p>
                             <p className="font-bold text-green-700 text-lg">{soil.nitrogen} <span className="text-xs">cg/kg</span></p>
                           </div>
                         )}
                         {soil.organic_carbon != null && (
                           <div className="bg-white rounded-xl p-3 text-center shadow-sm">
-                            <p className="text-xs text-gray-500 mb-1">Organic Carbon</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('irrigation.result.organicCarbon')}</p>
                             <p className="font-bold text-amber-700 text-lg">{soil.organic_carbon} <span className="text-xs">dg/kg</span></p>
                           </div>
                         )}
@@ -380,27 +382,26 @@ const IrrigationScheduler = () => {
                     <div className="bg-white rounded-2xl shadow-lg border border-green-100 p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="font-bold text-xl text-green-900 flex items-center gap-2">
-                          <span>🤖</span> AI Irrigation Plan
+                          <span>🤖</span> {t('irrigation.result.plan')}
                           <span className="text-sm font-normal text-gray-500">— {result.crop} · {result.location}</span>
                         </h3>
                         <button
                           onClick={() => {
                             const utterance = new SpeechSynthesisUtterance(result.irrigation_plan);
+                            utterance.lang = language === 'hi' ? 'hi-IN' : 'en-US';
                             window.speechSynthesis.speak(utterance);
                           }}
                           className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full hover:bg-green-200 transition"
                         >
-                          🔊 Read Aloud
+                          {t('common.readAloud')}
                         </button>
                       </div>
                       <div className="prose prose-sm max-w-none text-gray-700 space-y-1">
                         {renderMarkdown(result.irrigation_plan)}
                       </div>
-                      {result.fallback && (
-                        <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-700">
-                          ⚠️ Live data was unavailable. This is a rule-based fallback response.
-                        </div>
-                      )}
+                      <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-700">
+                        {t('irrigation.result.fallbackNote')}
+                      </div>
                     </div>
                   )}
 
@@ -416,16 +417,16 @@ const IrrigationScheduler = () => {
           className="mt-10 bg-white rounded-2xl shadow border border-green-100 p-6"
         >
           <h3 className="text-lg font-bold text-green-900 mb-4 flex items-center gap-2">
-            <FaInfoCircle className="text-green-500" /> Irrigation Best Practices
+            <FaInfoCircle className="text-green-500" /> {t('irrigation.bestPractices')}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
             {[
-              { emoji:'⏰', title:'Best Time', desc:'5–7 AM or 6–8 PM to minimize evaporation' },
-              { emoji:'💧', title:'Drip Irrigation', desc:'Saves up to 60% water vs. flood — ideal for most crops' },
-              { emoji:'🌱', title:'Mulching', desc:'Apply organic mulch to retain soil moisture' },
-              { emoji:'📊', title:'Monitor Daily', desc:'Finger test or moisture meter before irrigating' },
-              { emoji:'🌤️', title:'Check Forecast', desc:'Skip irrigation if rain is expected in 24–48 hrs' },
-              { emoji:'⚠️', title:'Avoid Overwatering', desc:'Excess water causes root diseases and nutrient loss' },
+              { emoji:'⏰', title: t('irrigation.practices.bestTime'),    desc: t('irrigation.practices.bestTimeDesc') },
+              { emoji:'💧', title: t('irrigation.practices.drip'),         desc: t('irrigation.practices.dripDesc') },
+              { emoji:'🌱', title: t('irrigation.practices.mulching'),     desc: t('irrigation.practices.mulchingDesc') },
+              { emoji:'📊', title: t('irrigation.practices.monitor'),      desc: t('irrigation.practices.monitorDesc') },
+              { emoji:'🌤️', title: t('irrigation.practices.forecast'),    desc: t('irrigation.practices.forecastDesc') },
+              { emoji:'⚠️', title: t('irrigation.practices.overwater'),   desc: t('irrigation.practices.overwaterDesc') },
             ].map((p, i) => (
               <div key={i} className="bg-green-50 rounded-xl p-4">
                 <p className="font-semibold text-green-900 mb-1">{p.emoji} {p.title}</p>

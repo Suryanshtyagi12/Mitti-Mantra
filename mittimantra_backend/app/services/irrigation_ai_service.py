@@ -17,6 +17,7 @@ from .weather_soil_utils import geocode, fetch_weather, fetch_soil_data
 from .ai_orchestrator import ai_orchestrator
 from app.ai_core.prompt_manager import load_prompt
 from app.ai_core.rule_based_fallbacks import get_irrigation_fallback
+from app.utils.translation_maps import translate_soil, get_hindi_prompt_directive
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ class IrrigationAIService:
             rainfall_pattern=rainfall_pattern,
             weather=weather_data,
             soil=soil_data,
+            language=language,
         )
 
         # ── Step 5: Call LLM ─────────────────────────────────────────
@@ -108,7 +110,7 @@ class IrrigationAIService:
             "crop":            crop,
             "method":          irrigation_method,
             "weather":         weather_data if weather_data else None,
-            "soil":            soil_data if soil_data else None,
+            "soil":            {**soil_data, "type": translate_soil(soil_data.get("type", ""), language)} if soil_data else None,
             "irrigation_plan": ai_response,
             "language":        language,
         }
@@ -125,6 +127,7 @@ class IrrigationAIService:
         rainfall_pattern: Optional[str],
         weather: Dict[str, Any],
         soil: Dict[str, Any],
+        language: str = "en",
     ) -> str:
         """Build a rich, data-driven prompt for the LLM."""
 
@@ -232,6 +235,8 @@ IMPORTANT RULES:
 - Keep each section concise — farmers need quick, actionable advice
 - Disclaimer: "This is AI-generated advice. Consult your local KVK for critical decisions."
 """
+        if language == "hi":
+            prompt += get_hindi_prompt_directive()
         return prompt.strip()
 
 

@@ -1,23 +1,28 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaSeedling, FaBars, FaTimes, FaLeaf, FaTint, FaInfoCircle, FaUser, FaSignOutAlt, FaSignInAlt, FaCalendarAlt } from 'react-icons/fa';
+import { FaSeedling, FaBars, FaTimes, FaLeaf, FaTint, FaInfoCircle, FaUser, FaSignOutAlt, FaSignInAlt, FaCalendarAlt, FaLanguage } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
 
   const navigation = [
-    { name: 'Home', path: '/', icon: FaSeedling },
-    { name: 'Crop Recommendation', path: '/crop-recommendation', icon: FaSeedling },
-    { name: 'Disease Detection', path: '/disease-detection', icon: FaLeaf },
-    { name: 'Irrigation', path: '/irrigation-scheduler', icon: FaTint },
-    { name: 'Track Farming', path: '/track-farming', icon: FaCalendarAlt },
-    { name: 'About', path: '/about', icon: FaInfoCircle },
+    { name: t('nav.home'), path: '/', icon: FaSeedling },
+    { name: t('nav.cropRecommendation'), path: '/crop-recommendation', icon: FaSeedling },
+    { name: t('nav.diseaseDetection'), path: '/disease-detection', icon: FaLeaf },
+    { name: t('nav.irrigation'), path: '/irrigation-scheduler', icon: FaTint },
+    { name: t('nav.about'), path: '/about', icon: FaInfoCircle },
   ];
 
   const isActive = (path) => location.pathname === path;
+
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'hi' : 'en');
+  };
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
@@ -49,6 +54,16 @@ const Navbar = () => {
               </Link>
             ))}
 
+            {/* Language Switcher */}
+            <button
+              onClick={toggleLanguage}
+              title={t('language.label')}
+              className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-semibold border-2 border-primary-500 text-primary-700 hover:bg-primary-50 transition-all duration-200 ml-1"
+            >
+              <FaLanguage className="text-base" />
+              <span>{t('language.switch')}</span>
+            </button>
+
             {/* Auth Controls */}
             {isAuthenticated ? (
               <div className="flex items-center space-x-2 ml-4 border-l pl-4">
@@ -61,7 +76,7 @@ const Navbar = () => {
                   className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center space-x-1"
                 >
                   <FaSignOutAlt />
-                  <span>Logout</span>
+                  <span>{t('nav.logout')}</span>
                 </button>
               </div>
             ) : (
@@ -71,20 +86,27 @@ const Navbar = () => {
                   className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 flex items-center space-x-1"
                 >
                   <FaSignInAlt />
-                  <span>Login</span>
+                  <span>{t('nav.login')}</span>
                 </Link>
                 <Link
                   to="/register"
                   className="px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700"
                 >
-                  Register
+                  {t('nav.register')}
                 </Link>
               </div>
             )}
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            {/* Mobile Language Toggle */}
+            <button
+              onClick={toggleLanguage}
+              className="text-xs font-bold border-2 border-primary-500 text-primary-700 px-2 py-1 rounded-md"
+            >
+              {t('language.switch')}
+            </button>
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-gray-700 hover:text-primary-600 focus:outline-none"
@@ -134,7 +156,7 @@ const Navbar = () => {
                     className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 flex items-center space-x-2"
                   >
                     <FaSignOutAlt />
-                    <span>Logout</span>
+                    <span>{t('nav.logout')}</span>
                   </button>
                 </>
               ) : (
@@ -145,14 +167,14 @@ const Navbar = () => {
                     className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
                   >
                     <FaSignInAlt />
-                    <span>Login</span>
+                    <span>{t('nav.login')}</span>
                   </Link>
                   <Link
                     to="/register"
                     onClick={() => setIsOpen(false)}
                     className="block px-3 py-2 rounded-md text-base font-medium bg-primary-600 text-white hover:bg-primary-700"
                   >
-                    Register
+                    {t('nav.register')}
                   </Link>
                 </>
               )}
