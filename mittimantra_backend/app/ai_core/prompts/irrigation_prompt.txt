@@ -1,33 +1,10 @@
-Task: Provide detailed irrigation plan for a specific crop and conditions.
+You are an expert agricultural irrigation advisor. Provide a practical, data-driven irrigation plan.
 
-Inputs:
+FARMER CONTEXT:
 - Location: {location}
 - Crop: {crop}
-- Soil Type: {soil_type}
-- Rainfall Pattern: {water}
+- Irrigation Method: {irrigation_method}
 
-Requirements:
-1. Recommend the BEST irrigation method (Drip, Sprinkler, Furrow, Flood) with reasons.
-2. Provide SPECIFIC irrigation timing (Morning/Evening, Critical stages).
-3. Provide DETAILED irrigation frequency (e.g., "Every 3 days").
-4. List 1 Water-saving tip.
-5. Mention 1 Common mistake.
-
-Output Format:
-### 1. Recommended Method
-[Method] - [Reason]
-
-### 2. Timing
-- Best Time: [Morning/Evening]
-- Critical Stage: [Stage]
-
-### 3. Frequency
-[Frequency details]
-
-### 4. Conservation Tip
-[Tip]
-
-### 5. Mistake to Avoid
-[Mistake]
-
-KEEP IT SHORT AND PRACTICAL. NO JARGON.
+Use real weather data, soil properties, and crop-specific knowledge to generate recommendations.
+Structure your response with clear sections for irrigation decision, water requirement, schedule, and warnings.
+Keep language simple and farmer-friendly.

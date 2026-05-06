@@ -53,10 +53,10 @@ export const apiService = {
     return response.data;
   },
 
-  // AI Crop Suggestion (ML Model)
+  // ML Crop Prediction (uses the HuggingFace-loaded scikit-learn model)
   predictCrop: async (data) => {
-    // data should match AICropRequest schema
-    const response = await api.post('/api/ai/crop-suggestion', data);
+    // data must match CropPredictionRequest: nitrogen, phosphorus, potassium, temperature, humidity, ph, rainfall
+    const response = await api.post('/predict-crop', data);
     return response.data;
   },
 

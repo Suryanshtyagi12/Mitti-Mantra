@@ -204,50 +204,38 @@ Soil Nutrients (if provided):
 async def get_irrigation_advice(
     request: AIIrrigationRequest
 ):
-    """Get AI-enhanced irrigation advice based on location and crop"""
-    from app.ai_core.prompt_manager import load_prompt
-    from app.services.ai_orchestrator import ai_orchestrator
+    """
+    Get AI-enhanced irrigation advice driven by:
+      - Real-time weather data (OpenWeather API)
+      - Soil intelligence (SoilGrids API)
+      - Crop type, irrigation method, and AI reasoning
     
-    # Construct prompt with available data
-    prompt = f"""
-Location: {request.location}
-Crop: {request.crop}
-Preferred Irrigation Method: {request.irrigation_method}
-Soil Type: {request.soil_type or 'Typical for this region'}
-Rainfall Pattern: {request.rainfall_pattern or 'Moderate rainfall'}
-
-Based on the above information, provide a detailed irrigation plan including:
-1. Best irrigation method for this crop and location
-2. Frequency and timing of irrigation
-3. Estimated water requirements
-4. Tips to conserve water
-"""
-    
+    Returns a structured response with weather summary, soil summary,
+    and a detailed 7-day irrigation plan.
+    """
     try:
-        system_prompt = load_prompt("system_prompt.txt")
-        ai_response = ai_orchestrator.get_llm_response(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            language=request.language
+        result = irrigation_ai_service.get_irrigation_advice(
+            location=request.location,
+            crop=request.crop,
+            irrigation_method=request.irrigation_method,
+            soil_type=request.soil_type or None,
+            rainfall_pattern=request.rainfall_pattern or None,
+            language=request.language,
         )
-        
-        return {
-            "irrigation_plan": ai_response,
-            "location": request.location,
-            "crop": request.crop,
-            "method": request.irrigation_method,
-            "language": request.language
-        }
+        return result
     except Exception as e:
-        logger.error(f"Error in irrigation AI: {str(e)}")
+        logger.error(f"Error in irrigation AI endpoint: {str(e)}")
         from app.ai_core.rule_based_fallbacks import get_irrigation_fallback
         fallback = get_irrigation_fallback(request.crop, request.location, request.language)
         return {
+            "location":        request.location,
+            "crop":            request.crop,
+            "method":          request.irrigation_method,
+            "weather":         None,
+            "soil":            {"type": request.soil_type or "Loamy Soil", "source": "fallback"},
             "irrigation_plan": fallback,
-            "location": request.location,
-            "crop": request.crop,
-            "language": request.language,
-            "fallback": True
+            "language":        request.language,
+            "fallback":        True,
         }
 
 @router.post("/disease")

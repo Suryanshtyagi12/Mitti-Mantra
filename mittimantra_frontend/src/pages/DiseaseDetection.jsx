@@ -1,56 +1,170 @@
 import React, { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FaLeaf, FaUpload, FaCamera, FaInfoCircle, FaTimes } from 'react-icons/fa';
+import {
+  FaLeaf, FaUpload, FaCamera, FaInfoCircle, FaTimes,
+  FaExclamationTriangle, FaCheckCircle, FaFlask, FaSeedling,
+  FaHandHoldingHeart, FaShieldAlt, FaLightbulb, FaMicroscope,
+  FaSpinner, FaRedo, FaStar,
+} from 'react-icons/fa';
 import { apiService } from '../services/api';
 
+/* ─── helpers ─────────────────────────────────────────────── */
+
+const SEVERITY_META = {
+  'none':      { color: 'text-emerald-700 bg-emerald-100 border-emerald-300', icon: '✅', label: 'None'      },
+  'low':       { color: 'text-yellow-700 bg-yellow-100 border-yellow-300',   icon: '⚠️', label: 'Low'       },
+  'medium':    { color: 'text-orange-700 bg-orange-100 border-orange-300',   icon: '🟠', label: 'Medium'    },
+  'high':      { color: 'text-red-700 bg-red-100 border-red-300',            icon: '🔴', label: 'High'      },
+  'very high': { color: 'text-red-900 bg-red-200 border-red-500',            icon: '🚨', label: 'Very High' },
+};
+
+const getSeverityMeta = (severity) =>
+  SEVERITY_META[(severity || '').toLowerCase()] ||
+  { color: 'text-gray-600 bg-gray-100 border-gray-300', icon: '❓', label: severity || 'Unknown' };
+
+/** Animated confidence bar */
+const ConfidenceBar = ({ value }) => {
+  const pct = Math.round((value || 0) * 100);
+  const color = pct >= 80 ? 'bg-emerald-500' : pct >= 55 ? 'bg-yellow-500' : 'bg-red-400';
+  return (
+    <div>
+      <div className="flex justify-between text-xs text-gray-500 mb-1">
+        <span>Confidence</span><span className="font-semibold">{pct}%</span>
+      </div>
+      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 1, ease: 'easeOut' }}
+          className={`h-full rounded-full ${color}`}
+        />
+      </div>
+    </div>
+  );
+};
+
+/** Reusable card section */
+const Section = ({ icon: Icon, iconColor, title, children }) => (
+  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+    <h4 className="flex items-center gap-2 font-semibold text-gray-800 mb-3">
+      <Icon className={`text-lg ${iconColor}`} />
+      {title}
+    </h4>
+    {children}
+  </div>
+);
+
+/** Bullet list with empty-state */
+const BulletList = ({ items, emptyMsg = 'N/A' }) => {
+  const validItems = (items || []).filter(Boolean);
+  if (validItems.length === 0) return <p className="text-gray-500 text-sm">{emptyMsg}</p>;
+  return (
+    <ul className="space-y-1.5">
+      {validItems.map((item, i) => (
+        <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+          <span className="mt-0.5 text-green-500 flex-shrink-0">•</span>
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+/** Loading skeleton shown while Gemini is analysing */
+const AnalysingSkeleton = () => (
+  <div className="bg-white rounded-2xl shadow border border-gray-100 p-6 space-y-4">
+    <div className="flex items-center gap-3 mb-2">
+      <FaSpinner className="text-green-500 animate-spin text-2xl" />
+      <div>
+        <p className="font-semibold text-gray-800">Analysing with Gemini AI…</p>
+        <p className="text-xs text-gray-400">Trying the best available model. This may take a few seconds.</p>
+      </div>
+    </div>
+    {[80, 60, 90, 50].map((w, i) => (
+      <div key={i} className={`h-4 bg-gray-100 rounded-full animate-pulse`} style={{ width: `${w}%` }} />
+    ))}
+  </div>
+);
+
+/* ─── main component ─────────────────────────────────────── */
+
 const DiseaseDetection = () => {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [mode, setMode] = useState('ml'); // 'ml' or 'ai'
+  const [loading, setLoading]         = useState(false);
+  const [result, setResult]           = useState(null);
+  const [errorState, setErrorState]   = useState(null);
+  const [mode, setMode]               = useState('ai');           // 'ml' | 'ai'
   const [selectedImage, setSelectedImage] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewUrl, setPreviewUrl]   = useState(null);
   const fileInputRef = useRef(null);
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select a valid image file');
-        return;
-      }
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select a valid image file'); return; }
+    setSelectedImage(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setResult(null);
+    setErrorState(null);
+  };
 
-      setSelectedImage(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setResult(null);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const fakeEvent = { target: { files: [file] } };
+      handleImageSelect(fakeEvent);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!selectedImage) {
-      toast.error('Please select an image first');
-      return;
-    }
-
+    if (!selectedImage) { toast.error('Please select an image first'); return; }
     setLoading(true);
+    setErrorState(null);
+    setResult(null);
 
     try {
       let response;
       if (mode === 'ml') {
-        // Use ML model endpoint
         response = await apiService.predictDisease(selectedImage);
       } else {
-        // Use AI API endpoint (Gemini Vision)
         response = await apiService.detectDiseaseAI(selectedImage, 'en');
       }
 
+      // ── Classify the response type ──────────────────────────────
+      const diseaseLower = (response?.disease || '').toLowerCase();
+      const isServiceError = response?.source === 'fallback' && (
+        diseaseLower.includes('quota') ||
+        diseaseLower.includes('unavailable') ||
+        diseaseLower.includes('busy') ||
+        diseaseLower.includes('failed') ||
+        diseaseLower.includes('service')
+      );
+
+      if (isServiceError) {
+        const isQuota = diseaseLower.includes('quota') || diseaseLower.includes('exceeded');
+        setErrorState({
+          title: response.disease,
+          message: response.farmer_advice || 'AI service temporarily unavailable.',
+          isQuota,
+        });
+        toast.warning('AI service temporarily unavailable — see details below.');
+        return;
+      }
+
+      // ── Success path ─────────────────────────────────────────────
       setResult(response);
-      toast.success('Disease detected successfully!');
+      const src = response?.source === 'gemini'
+        ? '✅ AI analysis complete!'
+        : '⚠️ Result via fallback mode';
+      toast.success(src);
+
     } catch (error) {
-      console.error('Error:', error);
-      toast.error(error.response?.data?.detail || 'Failed to detect disease');
+      console.error('Disease detection error:', error);
+      const msg = error.response?.data?.detail || 'Failed to analyse image. Please try again.';
+      toast.error(msg);
+      setErrorState({ title: 'Request Failed', message: msg, isQuota: false });
     } finally {
       setLoading(false);
     }
@@ -60,120 +174,86 @@ const DiseaseDetection = () => {
     setSelectedImage(null);
     setPreviewUrl(null);
     setResult(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    setErrorState(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity?.toLowerCase()) {
-      case 'high':
-      case 'very high':
-        return 'text-red-600 bg-red-100';
-      case 'medium':
-        return 'text-orange-600 bg-orange-100';
-      case 'low':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'none':
-        return 'text-green-600 bg-green-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
+  const handleReadAloud = () => {
+    const text = result?.farmer_advice || result?.ai_advice || '';
+    if (!text) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
   };
+
+  const severityMeta = getSeverityMeta(result?.severity);
+  const isHealthy = result?.disease?.toLowerCase() === 'healthy';
+
+  // Resolve friendly plant display name
+  const plantDisplay = (() => {
+    const p = result?.affected_plant || '';
+    if (!p || p.toLowerCase() === 'plant' || p.toLowerCase() === 'unknown') return null;
+    return p;
+  })();
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 py-12 px-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
+
+        {/* ── Header ── */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -24 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
+          className="text-center mb-10"
         >
-          <div className="flex justify-center mb-4">
-            <FaLeaf className="text-5xl text-green-600" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg mb-4">
+            <FaLeaf className="text-3xl text-white" />
           </div>
-          <h1 className="section-title">Plant Disease Detection</h1>
-          <p className="section-subtitle">
-            Upload a leaf image to detect diseases and get treatment recommendations
+          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+            Plant Disease Detection
+          </h1>
+          <p className="mt-2 text-gray-500 text-lg max-w-xl mx-auto">
+            Upload a leaf photo — AI analyses the disease, severity &amp; gives farmer-friendly treatment advice.
           </p>
 
-          {/* Mode Selector */}
-          <div className="mt-8 max-w-2xl mx-auto">
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-                Choose Detection Method
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {/* ML Model Option */}
-                <button
-                  onClick={() => setMode('ml')}
-                  className={`p-4 rounded-lg border-2 transition-all duration-200 ${mode === 'ml'
-                      ? 'border-primary-600 bg-primary-50 shadow-md'
-                      : 'border-gray-200 bg-white hover:border-primary-300'
-                    }`}
-                >
-                  <div className="flex flex-col items-center">
-                    <div className={`text-3xl mb-2 ${mode === 'ml' ? 'text-primary-600' : 'text-gray-400'}`}>
-                      🧠
-                    </div>
-                    <h4 className={`font-bold mb-1 ${mode === 'ml' ? 'text-primary-700' : 'text-gray-700'}`}>
-                      CNN Model
-                    </h4>
-                    <p className="text-xs text-gray-600 text-center">
-                      Fast image classification using trained deep learning model
-                    </p>
-                  </div>
-                </button>
-
-                {/* AI API Option */}
-                <button
-                  onClick={() => setMode('ai')}
-                  className={`p-4 rounded-lg border-2 transition-all duration-200 ${mode === 'ai'
-                      ? 'border-purple-600 bg-purple-50 shadow-md'
-                      : 'border-gray-200 bg-white hover:border-purple-300'
-                    }`}
-                >
-                  <div className="flex flex-col items-center">
-                    <div className={`text-3xl mb-2 ${mode === 'ai' ? 'text-purple-600' : 'text-gray-400'}`}>
-                      🔮
-                    </div>
-                    <h4 className={`font-bold mb-1 ${mode === 'ai' ? 'text-purple-700' : 'text-gray-700'}`}>
-                      AI Vision (Gemini)
-                    </h4>
-                    <p className="text-xs text-gray-600 text-center">
-                      Detailed analysis and treatment recommendations using Gemini Vision
-                    </p>
-                  </div>
-                </button>
-              </div>
-
-              {/* Current Selection Indicator */}
-              <div className="mt-4 text-center">
-                <span className="text-sm text-gray-600">
-                  Currently using: <span className={`font-semibold ${mode === 'ml' ? 'text-primary-600' : 'text-purple-600'}`}>
-                    {mode === 'ml' ? 'CNN Model' : 'AI Vision (Gemini)'}
-                  </span>
-                </span>
-              </div>
-            </div>
+          {/* Mode Toggle */}
+          <div className="mt-8 inline-flex bg-white rounded-2xl shadow-md p-1.5 border border-gray-100">
+            {[
+              { key: 'ml', label: 'CNN Model',        icon: '🧠', desc: 'Fast deep-learning classifier' },
+              { key: 'ai', label: 'Gemini AI Vision', icon: '🔮', desc: 'Detailed AI analysis'         },
+            ].map(({ key, label, icon, desc }) => (
+              <button
+                key={key}
+                id={`mode-${key}`}
+                onClick={() => { setMode(key); setResult(null); setErrorState(null); }}
+                className={`flex flex-col items-center px-8 py-3 rounded-xl transition-all duration-200 text-sm font-semibold
+                  ${mode === key
+                    ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-md'
+                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}
+              >
+                <span className="text-xl mb-0.5">{icon}</span>
+                <span>{label}</span>
+                <span className={`text-xs font-normal mt-0.5 ${mode === key ? 'text-green-100' : 'text-gray-400'}`}>{desc}</span>
+              </button>
+            ))}
           </div>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Upload Section */}
+
+          {/* ── Upload Panel ── */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="card"
+            transition={{ delay: 0.15 }}
+            className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6"
           >
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">
-              Upload Plant Image
+            <h2 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
+              <FaCamera className="text-green-500" /> Upload Crop Image
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Image Upload Area */}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Drop Zone */}
               <div>
                 <input
                   ref={fileInputRef}
@@ -183,18 +263,13 @@ const DiseaseDetection = () => {
                   className="hidden"
                   id="image-upload"
                 />
-
                 {previewUrl ? (
-                  <div className="relative">
-                    <img
-                      src={previewUrl}
-                      alt="Preview"
-                      className="w-full h-80 object-contain rounded-lg border-2 border-gray-300"
-                    />
+                  <div className="relative rounded-xl overflow-hidden border-2 border-green-300">
+                    <img src={previewUrl} alt="Preview" className="w-full h-72 object-contain bg-gray-50" />
                     <button
                       type="button"
                       onClick={handleReset}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow transition"
                     >
                       <FaTimes />
                     </button>
@@ -202,210 +277,302 @@ const DiseaseDetection = () => {
                 ) : (
                   <label
                     htmlFor="image-upload"
-                    className="image-preview cursor-pointer hover:border-primary-500 transition-colors flex flex-col items-center justify-center"
+                    onDrop={handleDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    className="flex flex-col items-center justify-center h-72 border-2 border-dashed border-green-300
+                               rounded-xl cursor-pointer hover:border-green-500 hover:bg-green-50 transition-colors"
                   >
-                    <FaCamera className="text-6xl text-gray-400 mb-4" />
-                    <p className="text-gray-600 font-medium mb-2">
-                      Click to upload image
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      PNG, JPG up to 10MB
-                    </p>
+                    <FaCamera className="text-5xl text-gray-300 mb-3" />
+                    <p className="text-gray-600 font-medium">Click or drag &amp; drop image here</p>
+                    <p className="text-sm text-gray-400 mt-1">PNG, JPG, WEBP — up to 10 MB</p>
                   </label>
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-4">
+              {/* Buttons */}
+              <div className="flex gap-3">
                 <button
+                  id="detect-disease-btn"
                   type="submit"
                   disabled={loading || !selectedImage}
-                  className="btn-primary flex-1"
+                  className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700
+                             text-white font-bold py-3 px-6 rounded-xl shadow transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
-                    <span className="flex items-center justify-center">
-                      <div className="spinner mr-2"></div>
-                      Analyzing...
+                    <span className="flex items-center justify-center gap-2">
+                      <FaSpinner className="animate-spin" /> Analysing…
                     </span>
                   ) : (
-                    <>
-                      <FaUpload className="inline mr-2" />
-                      Detect Disease
-                    </>
+                    <span className="flex items-center justify-center gap-2">
+                      <FaUpload /> Detect Disease
+                    </span>
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="btn-secondary"
+                  className="px-5 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium transition flex items-center gap-2"
                 >
-                  Reset
+                  <FaRedo className="text-sm" /> Reset
                 </button>
               </div>
             </form>
 
             {/* Tips */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm font-semibold text-blue-900 mb-2 flex items-center">
-                <FaInfoCircle className="mr-2" />
-                Tips for Best Results:
+            <div className="mt-5 p-4 bg-blue-50 rounded-xl border border-blue-100">
+              <p className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                <FaInfoCircle /> Tips for best results
               </p>
-              <ul className="text-sm text-blue-800 space-y-1 ml-6 list-disc">
+              <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
                 <li>Take clear, well-lit photos of affected leaves</li>
-                <li>Focus on the diseased area</li>
+                <li>Focus closely on the diseased area</li>
                 <li>Avoid blurry or dark images</li>
-                <li>Include only one leaf per image</li>
+                <li>One leaf per image works best</li>
               </ul>
             </div>
           </motion.div>
 
-          {/* Results Section */}
+          {/* ── Results Panel ── */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-4"
           >
-            {result ? (
-              <div className="space-y-6">
-                {/* Detection Result */}
-                <div className="card bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300">
-                  <h2 className="text-2xl font-bold mb-4 text-green-900 flex justify-between items-center">
-                    <span>Detection Result</span>
-                    <button
-                      onClick={() => {
-                        const text = result.ai_advice;
-                        if (text) {
-                          const utterance = new SpeechSynthesisUtterance(text);
-                          window.speechSynthesis.speak(utterance);
-                        }
-                      }}
-                      className="text-sm bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700 transition"
-                    >
-                      🔊 Read Aloud
-                    </button>
-                  </h2>
+            <AnimatePresence mode="wait">
 
-                  <div className="space-y-4">
-                    {/* Disease Name */}
-                    <div className="bg-white rounded-lg p-4 shadow-sm">
-                      <p className="text-sm text-gray-600 mb-1">Detected Disease</p>
-                      <p className="text-2xl font-bold text-green-700">
-                        {result.disease}
-                      </p>
+              {/* ── Loading State ── */}
+              {loading ? (
+                <motion.div
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <AnalysingSkeleton />
+                </motion.div>
+
+              ) : errorState ? (
+                /* ── Error / Quota State ── */
+                <motion.div
+                  key="error"
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className={`rounded-2xl border-2 shadow-lg p-6 ${
+                    errorState.isQuota
+                      ? 'bg-amber-50 border-amber-300'
+                      : 'bg-red-50 border-red-200'
+                  }`}
+                >
+                  <h3 className={`text-xl font-bold mb-2 ${errorState.isQuota ? 'text-amber-800' : 'text-red-800'}`}>
+                    {errorState.isQuota ? '⚠️ API Quota Reached' : '❌ Analysis Failed'}
+                  </h3>
+                  <p className="text-gray-700 text-sm leading-relaxed mb-4">{errorState.message}</p>
+                  {errorState.isQuota && (
+                    <div className="bg-amber-100 rounded-xl p-3 text-xs text-amber-900 mb-4">
+                      <strong>Why does this happen?</strong> The Gemini AI API has free-tier rate limits.
+                      The system automatically tried <strong>6 different model fallbacks</strong> but all are currently rate-limited.
+                      Please wait 1–2 minutes and try again.
+                    </div>
+                  )}
+                  <button
+                    id="try-again-btn"
+                    onClick={() => setErrorState(null)}
+                    className="text-sm px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-700 transition flex items-center gap-2"
+                  >
+                    <FaRedo className="text-xs" /> Try Again
+                  </button>
+                </motion.div>
+
+              ) : result ? (
+                /* ── Results ── */
+                <motion.div
+                  key="result"
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  className="space-y-4"
+                >
+                  {/* ── Hero Card ── */}
+                  <div className={`rounded-2xl border-2 shadow-lg p-5 ${isHealthy
+                      ? 'bg-gradient-to-br from-emerald-50 to-green-100 border-emerald-300'
+                      : 'bg-gradient-to-br from-red-50 to-orange-50 border-red-200'}`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-1">
+                          Detected Disease
+                        </p>
+                        <h2 className={`text-2xl font-extrabold leading-tight ${isHealthy ? 'text-emerald-700' : 'text-red-700'}`}>
+                          {result.disease || 'Unknown'}
+                        </h2>
+                        {/* Affected Plant */}
+                        {plantDisplay && (
+                          <p className="text-sm text-gray-500 mt-1.5 flex items-center gap-1.5">
+                            <FaLeaf className="text-green-400 flex-shrink-0" />
+                            Affected Plant: <span className="font-semibold text-gray-700">{plantDisplay}</span>
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleReadAloud}
+                        title="Read aloud"
+                        className="text-sm bg-white border border-gray-200 text-gray-600 hover:bg-green-50 px-3 py-1.5 rounded-full shadow-sm transition flex items-center gap-1 flex-shrink-0"
+                      >
+                        🔊 Read
+                      </button>
                     </div>
 
-                    {/* Affected Plant */}
-                    {result.affected_plant && (
-                      <div className="bg-white rounded-lg p-4 shadow-sm">
-                        <p className="text-sm text-gray-600 mb-1">Affected Plant</p>
-                        <p className="text-xl font-semibold text-gray-900">
-                          {result.affected_plant}
-                        </p>
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      {/* Severity Badge */}
+                      <div className="bg-white rounded-xl p-3 shadow-sm">
+                        <p className="text-xs text-gray-500 mb-1.5">Severity</p>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold border ${severityMeta.color}`}>
+                          {severityMeta.icon} {severityMeta.label}
+                        </span>
+                      </div>
+                      {/* Source Badge */}
+                      <div className="bg-white rounded-xl p-3 shadow-sm">
+                        <p className="text-xs text-gray-500 mb-1.5">Detection Source</p>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                          {result.source === 'gemini' ? '🔮 Gemini AI' : '🧠 CNN Model'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Confidence Bar */}
+                    {result.confidence != null && (
+                      <div className="bg-white rounded-xl p-3 shadow-sm">
+                        <ConfidenceBar value={result.confidence} />
                       </div>
                     )}
+                  </div>
 
-                    {/* Confidence & Severity */}
-                    <div className="grid grid-cols-2 gap-4">
-                      {result.confidence && (
-                        <div className="bg-white rounded-lg p-4 shadow-sm">
-                          <p className="text-sm text-gray-600 mb-2">Confidence</p>
-                          <p className="text-2xl font-bold text-green-700">
-                            {(result.confidence * 100).toFixed(1)}%
-                          </p>
-                        </div>
-                      )}
-
-                      {result.severity && (
-                        <div className="bg-white rounded-lg p-4 shadow-sm">
-                          <p className="text-sm text-gray-600 mb-2">Severity</p>
-                          <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${getSeverityColor(result.severity)}`}>
-                            {result.severity}
-                          </span>
-                        </div>
-                      )}
+                  {/* ── Farmer Advice (prominent) ── */}
+                  {result.farmer_advice && (
+                    <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 shadow p-5">
+                      <h4 className="flex items-center gap-2 font-bold text-amber-800 mb-2">
+                        <FaHandHoldingHeart className="text-amber-600" /> Farmer-Friendly Advice
+                      </h4>
+                      <p className="text-amber-900 text-sm leading-relaxed">{result.farmer_advice}</p>
                     </div>
-                  </div>
-                </div>
+                  )}
 
-                {/* AI Advice */}
-                {result.ai_advice && (
-                  <div className="card bg-white border border-gray-200">
-                    <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
-                      <FaInfoCircle className="mr-2 text-green-600" />
-                      AI Treatment Advice
-                    </h3>
-                    <div className="text-gray-700 whitespace-pre-wrap">
-                      {result.ai_advice}
+                  {/* ── Cause ── */}
+                  {result.cause && (
+                    <Section icon={FaMicroscope} iconColor="text-purple-500" title="What Causes This?">
+                      <p className="text-sm text-gray-700 leading-relaxed">{result.cause}</p>
+                    </Section>
+                  )}
+
+                  {/* ── Symptoms ── */}
+                  {result.symptoms_observed && (
+                    <Section icon={FaInfoCircle} iconColor="text-blue-500" title="Observed Symptoms">
+                      <p className="text-sm text-gray-700 leading-relaxed">{result.symptoms_observed}</p>
+                    </Section>
+                  )}
+
+                  {/* ── Precautions ── */}
+                  {result.immediate_precautions?.length > 0 && (
+                    <Section icon={FaExclamationTriangle} iconColor="text-orange-500" title="Immediate Precautions">
+                      <BulletList items={result.immediate_precautions} />
+                    </Section>
+                  )}
+
+                  {/* ── Treatment ── */}
+                  {result.treatment?.length > 0 && (
+                    <Section icon={FaCheckCircle} iconColor="text-green-600" title="Recommended Treatment">
+                      <BulletList items={result.treatment} />
+                    </Section>
+                  )}
+
+                  {/* ── Organic & Chemical Solutions side-by-side ── */}
+                  {(result.organic_solutions?.length > 0 || result.chemical_solutions?.length > 0) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Section icon={FaSeedling} iconColor="text-green-600" title="Organic Solutions">
+                        <BulletList items={result.organic_solutions} emptyMsg="None listed" />
+                      </Section>
+                      <Section icon={FaFlask} iconColor="text-red-500" title="Chemical Solutions">
+                        <BulletList items={result.chemical_solutions} emptyMsg="None listed" />
+                      </Section>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Action Button - Only show if we don't have detailed AI advice or if they want specific pest control */}
-                {/* With AI advice, the "pest control" page might be redundant, but keeping link just in case */}
-                {result.disease.toLowerCase() !== 'healthy' && !result.ai_advice && (
-                  <div className="card bg-primary-50 border-2 border-primary-300">
-                    <p className="text-gray-700 mb-4">
-                      Get detailed pest control recommendations and treatment options
-                    </p>
-                    <button
-                      onClick={() => window.location.href = '/pest-control'}
-                      className="btn-primary w-full"
-                    >
-                      View Treatment Options
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="card bg-gray-100 flex items-center justify-center h-full min-h-[400px]">
-                <div className="text-center text-gray-500">
-                  <FaLeaf className="text-6xl mx-auto mb-4 opacity-50" />
-                  <p className="text-lg">Upload an image to detect diseases</p>
-                </div>
-              </div>
-            )}
+                  {/* ── Prevention ── */}
+                  {result.prevention_methods?.length > 0 && (
+                    <Section icon={FaShieldAlt} iconColor="text-indigo-500" title="Prevention Methods">
+                      <BulletList items={result.prevention_methods} />
+                    </Section>
+                  )}
+
+                  {/* ── Recovery Outlook ── */}
+                  {result.recovery_outlook && (
+                    <Section icon={FaLightbulb} iconColor="text-yellow-500" title="Recovery Outlook">
+                      <p className="text-sm text-gray-700 leading-relaxed">{result.recovery_outlook}</p>
+                    </Section>
+                  )}
+
+                  {/* ── Full AI Response (collapsed) ── */}
+                  {result.ai_advice && (
+                    <details className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                      <summary className="cursor-pointer font-semibold text-gray-700 select-none flex items-center gap-2">
+                        <FaStar className="text-yellow-400 text-sm" />
+                        Full AI Response (raw)
+                      </summary>
+                      <pre className="mt-3 text-xs text-gray-600 whitespace-pre-wrap font-mono leading-relaxed overflow-auto max-h-64">
+                        {result.ai_advice}
+                      </pre>
+                    </details>
+                  )}
+                </motion.div>
+
+              ) : (
+                /* ── Empty placeholder ── */
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="bg-white rounded-2xl shadow border border-gray-100 flex flex-col items-center justify-center min-h-[440px] text-center p-8"
+                >
+                  <FaLeaf className="text-7xl text-gray-200 mb-4" />
+                  <p className="text-gray-400 text-lg font-medium">Upload an image to begin analysis</p>
+                  <p className="text-gray-300 text-sm mt-1">AI will detect diseases and provide treatment advice</p>
+                  {mode === 'ai' && (
+                    <div className="mt-4 text-xs text-gray-300 bg-gray-50 rounded-xl px-4 py-2">
+                      🔮 Using Gemini AI with 6-model fallback chain
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
 
-        {/* Common Diseases Info */}
+        {/* ── Common Diseases Reference ── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-12 card bg-yellow-50 border-2 border-yellow-200"
+          transition={{ delay: 0.5 }}
+          className="mt-12 bg-white rounded-2xl shadow border border-yellow-100 p-6"
         >
-          <h3 className="text-xl font-bold mb-4 text-yellow-900 flex items-center">
-            <FaInfoCircle className="mr-2" />
-            Commonly Detected Diseases
+          <h3 className="text-xl font-bold text-yellow-900 mb-5 flex items-center gap-2">
+            <FaInfoCircle className="text-yellow-500" /> Commonly Detected Diseases
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="bg-white p-4 rounded-lg">
-              <p className="font-semibold text-gray-900 mb-2">🍅 Tomato Diseases</p>
-              <ul className="text-gray-700 space-y-1">
-                <li>• Early Blight</li>
-                <li>• Late Blight</li>
-                <li>• Bacterial Spot</li>
-                <li>• Leaf Mold</li>
-              </ul>
-            </div>
-            <div className="bg-white p-4 rounded-lg">
-              <p className="font-semibold text-gray-900 mb-2">🌾 Rice Diseases</p>
-              <ul className="text-gray-700 space-y-1">
-                <li>• Leaf Blast</li>
-                <li>• Brown Spot</li>
-                <li>• Neck Blast</li>
-                <li>• Bacterial Blight</li>
-              </ul>
-            </div>
-            <div className="bg-white p-4 rounded-lg">
-              <p className="font-semibold text-gray-900 mb-2">🥔 Potato Diseases</p>
-              <ul className="text-gray-700 space-y-1">
-                <li>• Early Blight</li>
-                <li>• Late Blight</li>
-                <li>• Bacterial Wilt</li>
-                <li>• Leaf Roll Virus</li>
-              </ul>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { emoji: '🥒', name: 'Cucumber', diseases: ['Angular Leaf Spot', 'Powdery Mildew', 'Downy Mildew', 'Anthracnose'] },
+              { emoji: '🍅', name: 'Tomato',   diseases: ['Early Blight', 'Late Blight', 'Bacterial Spot', 'Leaf Mold'] },
+              { emoji: '🌾', name: 'Rice',     diseases: ['Leaf Blast', 'Brown Spot', 'Neck Blast', 'Bacterial Blight'] },
+            ].map(({ emoji, name, diseases }) => (
+              <div key={name} className="bg-yellow-50 rounded-xl p-4 border border-yellow-100">
+                <p className="font-semibold text-gray-900 mb-2">{emoji} {name} Diseases</p>
+                <ul className="text-gray-700 space-y-1 text-sm">
+                  {diseases.map((d) => <li key={d}>• {d}</li>)}
+                </ul>
+              </div>
+            ))}
           </div>
         </motion.div>
       </div>

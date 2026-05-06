@@ -12,8 +12,8 @@ joblib==1.4.2
 scikit-learn==1.8.0
 numpy==1.26.4
 
-# Deep Learning
-tensorflow==2.18.0
+# Hugging Face — model hub (crop model download)
+huggingface_hub
 
 # Image Processing
 pillow==11.0.0
@@ -35,5 +35,5 @@ bcrypt==3.2.2
 # Environment Variables
 python-dotenv==1.0.1
 groq
-google-generativeai
+google-genai>=1.0.0
 psycopg2-binary==2.9.10

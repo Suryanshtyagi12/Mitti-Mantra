@@ -1,10 +1,10 @@
-# Virtual Environments
+# ── Virtual Environments ──────────────────────────────────────────────────────
 venv/
 .venv/
 env/
 ENV/
 
-# Python artifacts
+# ── Python Artifacts ──────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -26,27 +26,69 @@ wheels/
 .installed.cfg
 *.egg
 
-# Node.js artifacts
+# ── Pytest & Testing ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+test_*.py
+*_test.py
+debug_*.py
+verify_*.py
+
+# ── Node.js Artifacts ─────────────────────────────────────────────────────────
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Environment variables
+# ── Environment & Secrets ─────────────────────────────────────────────────────
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+# Keep env.example (template) — do NOT ignore it
 
-# IDEs and Editors
+# ── Databases ─────────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+sqlite/
+
+# ── Debug & Temp Files ────────────────────────────────────────────────────────
+debug_output.txt
+*.log
+*.tmp
+*.temp
+
+# ── Jupyter Notebooks ─────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── IDEs and Editors ─────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
 
-# DB
-*.sqlite3
-sqlite/
+# ── ML Model Cache ────────────────────────────────────────────────────────────
+*.pkl
+*.h5
+*.pt
+*.pth
+*.onnx
+models/cache/
+.cache/
+
+# ── Build Outputs ─────────────────────────────────────────────────────────────
+dist/
+build/
+.next/
+out/
+
+# ── One-off Utility Scripts ──────────────────────────────────────────────────
+create_favicon.py
+init_db.py
