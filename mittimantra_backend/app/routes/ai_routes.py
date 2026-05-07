@@ -325,27 +325,42 @@ async def detect_disease_cnn(
     language: str = "en"
 ):
     """Get CNN model disease detection with Groq AI advice"""
-    from app.services.cnn_model_service import cnn_model_service
+    from app.services.cnn_model_service import predict as cnn_predict
     from app.services.ai_orchestrator import ai_orchestrator
     import json
     import re
     from app.utils.translation_maps import get_hindi_prompt_directive
 
     if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image")
-    
+        raise HTTPException(status_code=400, detail="Invalid image: only image files (JPG, PNG, WEBP) are accepted.")
+
     try:
         image_bytes = await file.read()
-        
-        # 1. Run CNN Prediction
-        disease_name, confidence = cnn_model_service.predict(image_bytes)
-        
+
+        # 1. Run CNN Prediction (lazy-loads model on first call)
+        try:
+            disease_name, confidence = cnn_predict(image_bytes)
+        except RuntimeError as cnn_err:
+            err_str = str(cnn_err)
+            # Re-raise as HTTP 503 for model/infra failures, 422 for bad input
+            if "invalid image" in err_str.lower() or "could not be opened" in err_str.lower():
+                raise HTTPException(status_code=422, detail=err_str)
+            if "hugging face download failed" in err_str.lower():
+                raise HTTPException(status_code=503, detail=err_str)
+            if ".keras model loading failed" in err_str.lower():
+                raise HTTPException(status_code=503, detail=err_str)
+            if "preprocessing failed" in err_str.lower():
+                raise HTTPException(status_code=422, detail=err_str)
+            if "tensorflow inference failed" in err_str.lower():
+                raise HTTPException(status_code=500, detail=err_str)
+            raise HTTPException(status_code=500, detail=f"CNN prediction failed: {err_str}")
+
         if not disease_name or disease_name == "Unknown":
             disease_name = "Unknown Disease"
-            
+
         # 2. Build Prompt for Groq
         lang_note = get_hindi_prompt_directive() if language == "hi" else ""
-        
+
         prompt = f"""You are an expert agricultural scientist.
 A farmer has uploaded an image of a plant. The CNN model has detected the following:
 Disease: {disease_name}
@@ -372,14 +387,14 @@ The JSON must have EXACTLY this structure:
 Do NOT add any text outside the JSON object.
 {lang_note}"""
 
-        # 3. Call Groq
+        # 3. Call Groq for agricultural guidance
         ai_response = ai_orchestrator.get_llm_response(
             prompt=prompt,
             system_prompt="You are an expert agricultural scientist and crop advisor for Indian farmers.",
             language=language
         )
-        
-        # 4. Parse JSON
+
+        # 4. Parse JSON response
         result = {}
         try:
             clean_json = re.sub(r'```(?:json)?\s*|\s*```', '', ai_response).strip()
@@ -399,27 +414,21 @@ Do NOT add any text outside the JSON object.
                 "recommended_pesticides": [],
                 "organic_solutions": [],
                 "prevention_tips": [],
-                "farmer_advice": "Please consult a local expert for more detailed advice on this disease."
+                "farmer_advice": "Please consult a local agricultural expert for detailed advice on this disease."
             }
-            
-        # Ensure source is set properly
-        result["source"] = "cnn"
-        result["language"] = language
+
+        # Ensure required fields are always present
+        result["source"]     = "cnn"
+        result["language"]   = language
         result["model_used"] = "CNN + Groq"
-        
+
         return result
 
+    except HTTPException:
+        raise   # pass-through, already well-formed
     except Exception as e:
-        logger.error(f"Error in CNN disease detection: {str(e)}")
-        error_msg = str(e)
-        if "HF_MODEL_REPO" in error_msg or "Hugging Face" in error_msg or "model.weights.h5" in error_msg:
-            detail = "Model loading failed. Please check Hugging Face repository and weights."
-        elif "cannot identify image file" in error_msg.lower():
-            detail = "Invalid image file uploaded."
-        else:
-            detail = f"CNN Disease detection failed: {error_msg}"
-            
-        raise HTTPException(status_code=500, detail=detail)
+        logger.error(f"Unexpected error in CNN disease detection: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"CNN Disease detection failed: {str(e)}")
 
 @router.post("/smart-talk")
 async def smart_talk(

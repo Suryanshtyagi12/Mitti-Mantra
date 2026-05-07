@@ -157,17 +157,46 @@ const DiseaseDetection = () => {
 
       // ── Success path ─────────────────────────────────────────────
       setResult(response);
-      const src = response?.source === 'gemini'
-        ? '✅ AI analysis complete!'
-        : '⚠️ Result via fallback mode';
+      const src = response?.source === 'cnn'
+        ? '🧠 CNN analysis complete!'
+        : response?.source === 'gemini'
+          ? '✅ Gemini AI analysis complete!'
+          : '⚠️ Result via fallback mode';
       toast.success(src);
 
     } catch (error) {
       console.error('Disease detection error:', error);
+      const status = error.response?.status;
       const detail = error.response?.data?.detail || null;
-      const msg = detail || 'Failed to analyse image. Please try again.';
-      toast.error(msg);
-      setErrorState({ title: 'Request Failed', message: msg, detail: detail !== msg ? detail : null, isQuota: false });
+
+      // Map specific backend error messages to user-friendly text
+      let userMsg = detail || 'Failed to analyse image. Please try again.';
+      let isQuota = false;
+
+      if (detail) {
+        const dLow = detail.toLowerCase();
+        if (dLow.includes('hugging face download failed')) {
+          userMsg = '⚠️ CNN model could not be downloaded from Hugging Face. Please try again in a moment.';
+        } else if (dLow.includes('.keras model loading failed')) {
+          userMsg = '⚠️ CNN model file failed to load. The model may be corrupt or incompatible.';
+        } else if (dLow.includes('tensorflow inference failed')) {
+          userMsg = '⚠️ TensorFlow inference failed during prediction. Try uploading a smaller or cleaner image.';
+        } else if (dLow.includes('invalid image') || dLow.includes('could not be opened') || status === 422) {
+          userMsg = '❌ Invalid image file. Please upload a clear JPG, PNG, or WEBP photo of the plant leaf.';
+        } else if (dLow.includes('preprocessing failed')) {
+          userMsg = '⚠️ Image preprocessing failed. Please try a different image format or size.';
+        } else if (status === 503) {
+          userMsg = '🔌 CNN model service is temporarily unavailable. Please try again shortly.';
+        }
+      }
+
+      toast.error(userMsg);
+      setErrorState({
+        title: mode === 'ml' ? 'CNN Detection Failed' : 'Gemini Analysis Failed',
+        message: userMsg,
+        detail: detail !== userMsg ? detail : null,
+        isQuota,
+      });
     } finally {
       setLoading(false);
     }

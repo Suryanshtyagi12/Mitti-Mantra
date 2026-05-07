@@ -19,3 +19,10 @@ services:
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "30"
+      # Hugging Face CNN model (.keras full model — no manual reconstruction)
+      - key: HF_MODEL_REPO
+        value: tyagisurya001/plant-disease-detector
+      - key: HF_MODEL_FILENAME
+        value: plant_disease_model.keras
+      - key: HF_MODEL_METADATA
+        value: metadata.json
