@@ -12,7 +12,7 @@ joblib==1.4.2
 scikit-learn==1.6.1
 numpy==1.26.4
 tensorflow==2.18.0
-h5py==3.10.0
+h5py>=3.11.0
 
 # Deep Learning
 tensorflow==2.18.0
