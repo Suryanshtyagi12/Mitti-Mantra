@@ -302,20 +302,124 @@ async def get_irrigation_advice(
             "fallback":        True,
         }
 
-@router.post("/disease")
-async def detect_disease(
+@router.post("/disease/gemini-detect")
+async def detect_disease_gemini(
     file: UploadFile = File(...),
     language: str = "en"
 ):
-    """Get AI-enhanced disease detection"""
+    """Get Gemini AI-enhanced disease detection"""
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
     
     image_bytes = await file.read()
-    return disease_ai_service.detect_disease_and_advise(
+    result = disease_ai_service.detect_disease_and_advise(
         image_bytes=image_bytes,
         language=language
     )
+    result["model_used"] = "Gemini Vision"
+    return result
+
+@router.post("/disease/cnn-detect")
+async def detect_disease_cnn(
+    file: UploadFile = File(...),
+    language: str = "en"
+):
+    """Get CNN model disease detection with Groq AI advice"""
+    from app.services.cnn_model_service import cnn_model_service
+    from app.services.ai_orchestrator import ai_orchestrator
+    import json
+    import re
+    from app.utils.translation_maps import get_hindi_prompt_directive
+
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    try:
+        image_bytes = await file.read()
+        
+        # 1. Run CNN Prediction
+        disease_name, confidence = cnn_model_service.predict(image_bytes)
+        
+        if not disease_name or disease_name == "Unknown":
+            disease_name = "Unknown Disease"
+            
+        # 2. Build Prompt for Groq
+        lang_note = get_hindi_prompt_directive() if language == "hi" else ""
+        
+        prompt = f"""You are an expert agricultural scientist.
+A farmer has uploaded an image of a plant. The CNN model has detected the following:
+Disease: {disease_name}
+Confidence: {confidence * 100:.2f}%
+
+Based ONLY on this disease, generate structured agricultural guidance.
+
+You MUST return ONLY a valid JSON object — no extra text, no markdown, no code fences.
+
+The JSON must have EXACTLY this structure:
+{{
+  "model_used": "CNN + Groq",
+  "disease": "{disease_name}",
+  "confidence": {confidence},
+  "severity": "<severity string like Low, Medium, High>",
+  "description": "<1-2 sentences description of cause and symptoms>",
+  "treatment_steps": ["<step 1>", "<step 2>"],
+  "recommended_pesticides": ["<pesticide 1>", "<pesticide 2>"],
+  "organic_solutions": ["<solution 1>", "<solution 2>"],
+  "prevention_tips": ["<tip 1>", "<tip 2>"],
+  "farmer_advice": "<2-3 sentence friendly advice for the farmer>"
+}}
+
+Do NOT add any text outside the JSON object.
+{lang_note}"""
+
+        # 3. Call Groq
+        ai_response = ai_orchestrator.get_llm_response(
+            prompt=prompt,
+            system_prompt="You are an expert agricultural scientist and crop advisor for Indian farmers.",
+            language=language
+        )
+        
+        # 4. Parse JSON
+        result = {}
+        try:
+            clean_json = re.sub(r'```(?:json)?\s*|\s*```', '', ai_response).strip()
+            match = re.search(r'\{.*\}', clean_json, re.DOTALL)
+            if match:
+                clean_json = match.group(0)
+            result = json.loads(clean_json)
+        except Exception as parse_err:
+            logger.warning(f"Failed to parse Groq structured AI JSON: {parse_err}")
+            result = {
+                "model_used": "CNN + Groq",
+                "disease": disease_name,
+                "confidence": confidence,
+                "severity": "Unknown",
+                "description": ai_response,
+                "treatment_steps": [],
+                "recommended_pesticides": [],
+                "organic_solutions": [],
+                "prevention_tips": [],
+                "farmer_advice": "Please consult a local expert for more detailed advice on this disease."
+            }
+            
+        # Ensure source is set properly
+        result["source"] = "cnn"
+        result["language"] = language
+        result["model_used"] = "CNN + Groq"
+        
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in CNN disease detection: {str(e)}")
+        error_msg = str(e)
+        if "HF_MODEL_REPO" in error_msg or "Hugging Face" in error_msg or "model.weights.h5" in error_msg:
+            detail = "Model loading failed. Please check Hugging Face repository and weights."
+        elif "cannot identify image file" in error_msg.lower():
+            detail = "Invalid image file uploaded."
+        else:
+            detail = f"CNN Disease detection failed: {error_msg}"
+            
+        raise HTTPException(status_code=500, detail=detail)
 
 @router.post("/smart-talk")
 async def smart_talk(

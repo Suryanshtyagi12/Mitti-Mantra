@@ -40,10 +40,16 @@ irrigation_service = None
 pest_service = None
 
 
+from app.database import engine, Base
+import app.db_models
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     global crop_service, disease_service, irrigation_service, pest_service
+    
+    logger.info("Ensuring database tables exist...")
+    Base.metadata.create_all(bind=engine)
     
     logger.info("Loading ML models...")
     try:

@@ -72,14 +72,14 @@ const BulletList = ({ items, emptyMsg = 'N/A' }) => {
   );
 };
 
-/** Loading skeleton shown while Gemini is analysing */
-const AnalysingSkeleton = () => (
+/** Loading skeleton shown while AI is analysing — label adapts to active mode */
+const AnalysingSkeleton = ({ modelLabel = 'Gemini AI' }) => (
   <div className="bg-white rounded-2xl shadow border border-gray-100 p-6 space-y-4">
     <div className="flex items-center gap-3 mb-2">
       <FaSpinner className="text-green-500 animate-spin text-2xl" />
       <div>
-        <p className="font-semibold text-gray-800">Analysing with Gemini AI…</p>
-        <p className="text-xs text-gray-400">Trying the best available model. This may take a few seconds.</p>
+        <p className="font-semibold text-gray-800">Analysing with {modelLabel}…</p>
+        <p className="text-xs text-gray-400">Processing your image. This may take a few seconds.</p>
       </div>
     </div>
     {[80, 60, 90, 50].map((w, i) => (
@@ -164,9 +164,10 @@ const DiseaseDetection = () => {
 
     } catch (error) {
       console.error('Disease detection error:', error);
-      const msg = error.response?.data?.detail || 'Failed to analyse image. Please try again.';
+      const detail = error.response?.data?.detail || null;
+      const msg = detail || 'Failed to analyse image. Please try again.';
       toast.error(msg);
-      setErrorState({ title: 'Request Failed', message: msg, isQuota: false });
+      setErrorState({ title: 'Request Failed', message: msg, detail: detail !== msg ? detail : null, isQuota: false });
     } finally {
       setLoading(false);
     }
@@ -352,7 +353,7 @@ const DiseaseDetection = () => {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <AnalysingSkeleton />
+                  <AnalysingSkeleton modelLabel={mode === 'ml' ? 'CNN Model' : 'Gemini AI'} />
                 </motion.div>
 
               ) : errorState ? (
@@ -372,6 +373,11 @@ const DiseaseDetection = () => {
                     {errorState.isQuota ? '⚠️ API Quota Reached' : '❌ Analysis Failed'}
                   </h3>
                   <p className="text-gray-700 text-sm leading-relaxed mb-4">{errorState.message}</p>
+                  {errorState.detail && (
+                    <div className="bg-red-100 rounded-xl p-3 text-xs text-red-800 font-mono mb-4 break-words">
+                      {errorState.detail}
+                    </div>
+                  )}
                   {errorState.isQuota && (
                     <div className="bg-amber-100 rounded-xl p-3 text-xs text-amber-900 mb-4">
                       <strong>Why does this happen?</strong> The Gemini AI API has free-tier rate limits.
@@ -477,36 +483,65 @@ const DiseaseDetection = () => {
                   )}
 
                   {/* ── Precautions ── */}
-                  {result.immediate_precautions?.length > 0 && (
+                  {(result.immediate_precautions?.length > 0) && (
                     <Section icon={FaExclamationTriangle} iconColor="text-orange-500" title={t('diseaseDetection.result.precautions')}>
                       <BulletList items={result.immediate_precautions} />
                     </Section>
                   )}
 
-                  {/* ── Treatment ── */}
-                  {result.treatment?.length > 0 && (
-                    <Section icon={FaCheckCircle} iconColor="text-green-600" title={t('diseaseDetection.result.treatment')}>
-                      <BulletList items={result.treatment} />
-                    </Section>
+                  {/* ── Treatment ── CNN: treatment_steps | Gemini: treatment ── */}
+                  {result.model_used === 'CNN + Groq' ? (
+                    result.treatment_steps?.length > 0 && (
+                      <Section icon={FaCheckCircle} iconColor="text-green-600" title={t('diseaseDetection.result.treatment')}>
+                        <BulletList items={result.treatment_steps} />
+                      </Section>
+                    )
+                  ) : (
+                    result.treatment?.length > 0 && (
+                      <Section icon={FaCheckCircle} iconColor="text-green-600" title={t('diseaseDetection.result.treatment')}>
+                        <BulletList items={result.treatment} />
+                      </Section>
+                    )
                   )}
 
-                  {/* ── Organic & Chemical Solutions side-by-side ── */}
-                  {(result.organic_solutions?.length > 0 || result.chemical_solutions?.length > 0) && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Section icon={FaSeedling} iconColor="text-green-600" title={t('diseaseDetection.result.organic')}>
-                        <BulletList items={result.organic_solutions} emptyMsg="None listed" />
-                      </Section>
-                      <Section icon={FaFlask} iconColor="text-red-500" title={t('diseaseDetection.result.chemical')}>
-                        <BulletList items={result.chemical_solutions} emptyMsg="None listed" />
-                      </Section>
-                    </div>
+                  {/* ── Organic & Chemical / Pesticides ── CNN: recommended_pesticides | Gemini: chemical_solutions + organic_solutions ── */}
+                  {result.model_used === 'CNN + Groq' ? (
+                    result.recommended_pesticides?.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Section icon={FaSeedling} iconColor="text-green-600" title={t('diseaseDetection.result.organic')}>
+                          <BulletList items={result.organic_solutions} emptyMsg="None listed" />
+                        </Section>
+                        <Section icon={FaFlask} iconColor="text-red-500" title="Recommended Pesticides">
+                          <BulletList items={result.recommended_pesticides} emptyMsg="None listed" />
+                        </Section>
+                      </div>
+                    )
+                  ) : (
+                    (result.organic_solutions?.length > 0 || result.chemical_solutions?.length > 0) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Section icon={FaSeedling} iconColor="text-green-600" title={t('diseaseDetection.result.organic')}>
+                          <BulletList items={result.organic_solutions} emptyMsg="None listed" />
+                        </Section>
+                        <Section icon={FaFlask} iconColor="text-red-500" title={t('diseaseDetection.result.chemical')}>
+                          <BulletList items={result.chemical_solutions} emptyMsg="None listed" />
+                        </Section>
+                      </div>
+                    )
                   )}
 
-                  {/* ── Prevention ── */}
-                  {result.prevention_methods?.length > 0 && (
-                    <Section icon={FaShieldAlt} iconColor="text-indigo-500" title={t('diseaseDetection.result.prevention')}>
-                      <BulletList items={result.prevention_methods} />
-                    </Section>
+                  {/* ── Prevention ── CNN: prevention_tips | Gemini: prevention_methods ── */}
+                  {result.model_used === 'CNN + Groq' ? (
+                    result.prevention_tips?.length > 0 && (
+                      <Section icon={FaShieldAlt} iconColor="text-indigo-500" title={t('diseaseDetection.result.prevention')}>
+                        <BulletList items={result.prevention_tips} />
+                      </Section>
+                    )
+                  ) : (
+                    result.prevention_methods?.length > 0 && (
+                      <Section icon={FaShieldAlt} iconColor="text-indigo-500" title={t('diseaseDetection.result.prevention')}>
+                        <BulletList items={result.prevention_methods} />
+                      </Section>
+                    )
                   )}
 
                   {/* ── Recovery Outlook ── */}

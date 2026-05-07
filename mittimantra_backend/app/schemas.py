@@ -58,3 +58,21 @@ class PasswordChange(BaseModel):
     """Schema for changing password"""
     old_password: str
     new_password: str = Field(..., min_length=6)
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Schema for requesting a password reset OTP"""
+    email: EmailStr
+
+
+class VerifyOTPRequest(BaseModel):
+    """Schema for verifying the OTP"""
+    email: EmailStr
+    otp_code: str = Field(..., min_length=6, max_length=6)
+
+
+class ResetPasswordOTPRequest(BaseModel):
+    """Schema for resetting password with OTP"""
+    email: EmailStr
+    otp_code: str = Field(..., min_length=6, max_length=6)
+    new_password: str = Field(..., min_length=6)

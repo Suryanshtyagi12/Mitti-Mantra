@@ -67,6 +67,21 @@ export const apiService = {
     return response.data;
   },
 
+  forgotPassword: async (email) => {
+    const response = await api.post('/api/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  verifyOTP: async (email, otp_code) => {
+    const response = await api.post('/api/auth/verify-otp', { email, otp_code });
+    return response.data;
+  },
+
+  resetPassword: async (email, otp_code, new_password) => {
+    const response = await api.post('/api/auth/reset-password', { email, otp_code, new_password });
+    return response.data;
+  },
+
   getProfile: async () => {
     const response = await api.get('/api/auth/me');
     return response.data;
@@ -92,7 +107,8 @@ export const apiService = {
   predictDisease: async (file, language = 'en') => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post(`/api/ai/disease?language=${language}`, formData, {
+    formData.append('model_type', 'cnn');
+    const response = await api.post(`/api/ai/disease/cnn-detect?language=${language}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
@@ -101,7 +117,8 @@ export const apiService = {
   detectDiseaseAI: async (file, language = 'en') => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post(`/api/ai/disease?language=${language}&mode=ai`, formData, {
+    formData.append('model_type', 'gemini');
+    const response = await api.post(`/api/ai/disease/gemini-detect?language=${language}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
@@ -109,21 +126,6 @@ export const apiService = {
 
   getIrrigationSchedule: async (data) => {
     const response = await api.post('/api/ai/irrigation', data);
-    return response.data;
-  },
-
-  addFarmingRecord: async (data) => {
-    const response = await api.post('/api/ai/track-farming', data);
-    return response.data;
-  },
-
-  getFarmingRecords: async () => {
-    const response = await api.get('/api/ai/track-farming');
-    return response.data;
-  },
-
-  getRiskAlerts: async () => {
-    const response = await api.get('/api/ai/risk-alerts');
     return response.data;
   },
 

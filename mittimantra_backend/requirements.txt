@@ -9,10 +9,12 @@ jinja2
 
 # ML Core
 joblib==1.4.2
-scikit-learn==1.8.0
+scikit-learn==1.6.1
 numpy==1.26.4
+tensorflow-cpu==2.15.0
+h5py==3.10.0
 
-# Hugging Face — model hub (crop model download)
+# Hugging Face — model hub
 huggingface_hub
 
 # Image Processing

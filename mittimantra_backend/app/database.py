@@ -1,6 +1,6 @@
 """
 Database Configuration
-SQLAlchemy setup for SQLite (local development)
+SQLAlchemy setup for PostgreSQL (Production) and SQLite (Development)
 """
 
 from sqlalchemy import create_engine
@@ -12,16 +12,29 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Database URL from environment variable
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mittimantra.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    DATABASE_URL = "sqlite:///./mittimantra.db"
 
-# Create SQLAlchemy engine with proper configuration for SQLite or PostgreSQL
+
+# Create SQLAlchemy engine with proper configuration
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
         DATABASE_URL,
         connect_args={"check_same_thread": False}  # Required for SQLite with FastAPI
     )
 else:
-    engine = create_engine(DATABASE_URL)
+    # Handle postgres:// vs postgresql://
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=10,
+        max_overflow=20,
+        pool_pre_ping=True,  # Crucial for connection pooling stability (e.g. Supabase Render)
+        pool_recycle=300
+    )
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

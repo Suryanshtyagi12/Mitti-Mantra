@@ -19,15 +19,15 @@ from app.db_models import User
 load_dotenv()
 
 # Security configuration – all values from environment
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY"))
 if not SECRET_KEY or SECRET_KEY == "your-secret-key-here-change-in-production":
     raise RuntimeError(
-        "SECRET_KEY is not set or is still the placeholder. "
-        "Please set a strong SECRET_KEY in your .env file."
+        "JWT_SECRET_KEY or SECRET_KEY is not set or is still the placeholder. "
+        "Please set a strong JWT_SECRET_KEY in your .env file."
     )
 
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+ALGORITHM = os.getenv("JWT_ALGORITHM", os.getenv("ALGORITHM", "HS256"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")))
 
 # Password hashing with bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

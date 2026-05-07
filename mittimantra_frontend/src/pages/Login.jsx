@@ -108,11 +108,15 @@ const Login = () => {
                             </div>
                         </div>
 
-                        {/* Password */}
                         <div className="auth-field">
-                            <label htmlFor="login-password" className="auth-label">
-                                Password
-                            </label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                <label htmlFor="login-password" className="auth-label">
+                                    Password
+                                </label>
+                                <Link to="/forgot-password" style={{ fontSize: '0.875rem', fontWeight: 500, color: '#16a34a', textDecoration: 'none' }}>
+                                    Forgot password?
+                                </Link>
+                            </div>
                             <div className="auth-input-wrap">
                                 <span className="auth-input-icon">🔒</span>
                                 <input

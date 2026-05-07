@@ -9,8 +9,12 @@ from datetime import timedelta
 from pydantic import BaseModel, EmailStr, Field
 
 from app.database import get_db
-from app.db_models import User
-from app.schemas import UserResponse
+from app.db_models import User, OTPVerification
+from app.schemas import UserResponse, ForgotPasswordRequest, VerifyOTPRequest, ResetPasswordOTPRequest
+from app.services.email_service import send_otp_email
+import random
+import string
+from datetime import datetime, timezone
 from app.auth import (
     get_password_hash,
     create_access_token,
@@ -169,3 +173,95 @@ async def get_current_user_profile(
     Return the profile of the currently authenticated user.
     """
     return current_user
+
+
+@router.post("/forgot-password")
+async def api_forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Generate an OTP and send it to the user's email for password reset.
+    """
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user:
+        # Don't reveal if the email exists or not
+        return {"message": "If an account with that email exists, an OTP has been sent."}
+
+    # Generate 6-digit OTP
+    otp_code = ''.join(random.choices(string.digits, k=6))
+    
+    # Invalidate old OTPs
+    db.query(OTPVerification).filter(OTPVerification.email == request.email).delete()
+    
+    # Create new OTP (expires in 15 mins)
+    expires_at = datetime.utcnow() + timedelta(minutes=15)
+    otp_record = OTPVerification(
+        email=request.email,
+        otp_code=otp_code,
+        expires_at=expires_at
+    )
+    db.add(otp_record)
+    db.commit()
+    
+    # Send email
+    email_sent = send_otp_email(request.email, otp_code)
+    if not email_sent:
+        logger.error(f"Failed to send OTP email to {request.email}")
+        # In production, you might not want to return 500, but for now we do
+        raise HTTPException(status_code=500, detail="Failed to send OTP email. Please try again later.")
+        
+    return {"message": "OTP sent successfully. Please check your email."}
+
+
+@router.post("/verify-otp")
+async def api_verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
+    """
+    Verify the OTP for a given email.
+    """
+    otp_record = db.query(OTPVerification).filter(
+        OTPVerification.email == request.email,
+        OTPVerification.otp_code == request.otp_code,
+        OTPVerification.is_verified == False
+    ).first()
+    
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="Invalid OTP code.")
+        
+    if otp_record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="OTP has expired.")
+        
+    # Mark as verified
+    otp_record.is_verified = True
+    db.commit()
+    
+    return {"message": "OTP verified successfully. You can now reset your password."}
+
+
+@router.post("/reset-password")
+async def api_reset_password(request: ResetPasswordOTPRequest, db: Session = Depends(get_db)):
+    """
+    Reset password using a verified OTP.
+    """
+    # Check if OTP was verified
+    otp_record = db.query(OTPVerification).filter(
+        OTPVerification.email == request.email,
+        OTPVerification.otp_code == request.otp_code,
+        OTPVerification.is_verified == True
+    ).first()
+    
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="Invalid or unverified OTP.")
+        
+    if otp_record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="OTP has expired.")
+        
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    # Update password
+    user.hashed_password = get_password_hash(request.new_password)
+    
+    # Delete the used OTP
+    db.delete(otp_record)
+    db.commit()
+    
+    return {"message": "Password reset successfully. You can now log in."}
