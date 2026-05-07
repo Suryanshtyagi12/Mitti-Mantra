@@ -9,8 +9,10 @@ jinja2
 
 # ML Core
 joblib==1.4.2
-scikit-learn==1.8.0
+scikit-learn==1.6.1
 numpy==1.26.4
+tensorflow-cpu==2.15.0
+h5py==3.10.0
 
 # Deep Learning
 tensorflow==2.18.0
@@ -35,8 +37,11 @@ bcrypt==3.2.2
 # Environment Variables
 python-dotenv==1.0.1
 groq
-google-generativeai
+google-genai>=1.0.0
 psycopg2-binary==2.9.10
 
+# Hugging Face
 huggingface_hub==0.30.2
-google-genai>=1.0.0
+hf_xet
+
+
