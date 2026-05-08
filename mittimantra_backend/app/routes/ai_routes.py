@@ -393,6 +393,7 @@ Do NOT add any text outside the JSON object.
             system_prompt="You are an expert agricultural scientist and crop advisor for Indian farmers.",
             language=language
         )
+        logger.info(f"Groq raw response: {ai_response}")
 
         # 4. Parse JSON response
         result = {}
