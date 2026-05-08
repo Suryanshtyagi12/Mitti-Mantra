@@ -339,7 +339,7 @@ async def detect_disease_cnn(
 
         # 1. Run CNN Prediction (lazy-loads model on first call)
         try:
-            disease_name, confidence = cnn_predict(image_bytes)
+            disease_name, confidence = await cnn_predict(image_bytes)
         except RuntimeError as cnn_err:
             err_str = str(cnn_err)
             # Re-raise as HTTP 503 for model/infra failures, 422 for bad input
@@ -441,4 +441,3 @@ async def smart_talk(
         language=request.language,
         context=request.context
     )
-
