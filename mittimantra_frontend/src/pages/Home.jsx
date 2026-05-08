@@ -32,10 +32,9 @@ const Home = () => {
   ];
 
   const stats = [
-    { value: '10,000+', label: t('home.stats.farmers') },
-    { value: '50+',     label: t('home.stats.crops') },
-    { value: '95%',     label: t('home.stats.accuracy') },
-    { value: '24/7',    label: t('home.stats.support') },
+    { value: '50+', label: t('home.stats.crops') },
+    { value: '95%', label: t('home.stats.accuracy') },
+    { value: '24/7', label: t('home.stats.support') },
   ];
 
   return (
@@ -74,7 +73,7 @@ const Home = () => {
       {/* Stats Section */}
       <section className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-3 gap-8">
             {stats.map((stat, index) => (
               <motion.div
                 key={index}
@@ -101,7 +100,7 @@ const Home = () => {
             <p className="section-subtitle">{t('home.featuresSubtitle')}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <motion.div
                 key={index}
